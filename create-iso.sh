@@ -33,7 +33,8 @@ fi
 #   exit 1
 # fi
 
-# ## Install required tools
+# ## Install required tools for the ISO creation
+echo "Installing required packages..."
 # TODO ramove sudo and check for sudo
 sudo apt-get install xorriso isolinux
 
@@ -117,6 +118,7 @@ echo "${custom_iso_checksum}" > ${custom_iso_checksum_local}
 
 ################### Upload to Hypervisor or cloud platform #######################
 # TODO implement upload to cloud platform, eg: proxmox, aws, ... For Now dirty scp to (ESXI) hypervisor
+# TODO: option to upload or not the custom iso
 # echo "Uploading customized ISO to hypervisor..."
 
 echo "Uploading customized ISO to VMware ESXi host ${VMWARE_SSH_HOST_CONFIG} ..."

@@ -1,162 +1,322 @@
 #!/bin/bash
-# v0.1.0
+#================================
+# Custom ISO Builder
+# Version: 0.2.0
+#================================
 # This script creates a customized Debian ISO with a preseed file for automated installation.
 # iso creation based on preseed-creator tool: https://framagit.org/fiat-tux/hat-softwares/preseed-creator/
 
+SCRIPT_VERSION="0.2.0"
+
+#--- Logging functions ---
+log() {
+    local level=$1
+    shift
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    echo "[$level] $timestamp - $*"
+}
+
+log_verbose() {
+    if [ "$VERBOSE_MODE" = "true" ]; then
+        log "DEBUG" "$@"
+    fi
+}
+
+log_error() {
+    log "ERROR" "$@" >&2
+}
+
+log_success() {
+    log "SUCCESS" "$@"
+}
+
+#--- Configuration ---
 dirpath=$(pwd)
 
-# source config variables
+# Source config variables
+log "INFO" "Custom ISO Builder v${SCRIPT_VERSION}"
+log "INFO" "Loading configuration..."
+
 source ./.env
 source ${dirpath}/config/debian13.1.0.cfg
 if [ $? -ne 0 ]; then
-  echo "Failed to source config file!"
+  log_error "Failed to source config file!"
   exit 1
 fi
 
-# # Generate preseed file from template
-# TODO: variable substitutions in preseed file
-# Using envsubst for variable substitution in preseed file
-# for now we copy the template directly
-if [[ ! -f "${dirpath}/${preseed_dirname}/${preseed_template}" ]] && [[ ! -f "${dirpath}/${preseed_dirname}/${preseed_file}" ]]; then
-  echo "preseed file ${dirpath}/${preseed_dirname}/${preseed_file} or template ${dirpath}/${preseed_dirname}/${preseed_template} not found! Aboting."
+# Hardcoded paths (for Docker compatibility)
+CONFIG_DIR="config"
+PRESEED_DIR="preseeds"
+ISO_DIR="ISOs"
+WORKING_DIR="custom-iso-workdir"
+
+log_verbose "Configuration loaded successfully"
+log_verbose "Debian version: ${debian_version}"
+log_verbose "Working directory: ${dirpath}"
+
+#--- Preseed file preparation ---
+log "INFO" "Checking preseed file..."
+preseed_template_path="${dirpath}/${PRESEED_DIR}/${preseed_template}"
+preseed_file_path="${dirpath}/${PRESEED_DIR}/${preseed_file}"
+
+if [[ ! -f "${preseed_template_path}" ]] && [[ ! -f "${preseed_file_path}" ]]; then
+  log_error "Preseed file ${preseed_file_path} or template ${preseed_template_path} not found!"
   exit 1
-elif [[ -f "${dirpath}/${preseed_dirname}/${preseed_template}" ]] && [[ ! -f "${dirpath}/${preseed_dirname}/${preseed_file}" ]]; then
-  echo "No preseed file found, copying template ${dirpath}/${preseed_dirname}/${preseed_template} to ${dirpath}/${preseed_dirname}/${preseed_file}"
-  cp ${dirpath}/${preseed_dirname}/${preseed_template} ${dirpath}/${preseed_dirname}/${preseed_file}
+elif [[ -f "${preseed_template_path}" ]] && [[ ! -f "${preseed_file_path}" ]]; then
+  log "INFO" "No preseed file found, copying template to ${preseed_file}"
+  cp "${preseed_template_path}" "${preseed_file_path}"
+  log_verbose "Preseed file created from template"
+else
+  log_verbose "Preseed file exists: ${preseed_file}"
 fi
 
-# substituion: LATER USE
+# TODO: variable substitutions in preseed file (LATER USE)
 # export PRESEED_NETCFG_HOSTNAME PRESEED_NETCFG_DOMAIN
-# envsubst < ./${preseed_dirname}/preseed_debian13_template.cfg > ./${preseed_dirname}/${preseed_file}
-# if [ $? -ne 0 ]; then
-#   echo "Failed to generate preseed file from template!"
-#   exit 1
-# fi
+# envsubst < ${preseed_template_path} > ${preseed_file_path}
 
-# ## Install required tools for the ISO creation
-echo "Installing required packages..."
-# TODO ramove sudo and check for sudo
-sudo apt-get install xorriso isolinux
+#--- Dependency checking and installation ---
+check_and_install_dependencies() {
+    local deps_missing=false
 
-# # install preseed-creator
-# wget --quiet --content-disposition   "https://cloud.fiat-tux.fr/s/debian-packages/download?path=%2Fpreseed-creator&files=preseed-creator_0.05.deb"   "https://cloud.fiat-tux.fr/s/debian-packages/download?path=%2Fpreseed-creator&files=preseed-creator_0.05.deb.minisig" &&   minisign -Vm preseed-creator_0.05.deb -P RWQm7sZSguNVtitOiU4ozG+HgWWyUz4KmB0NMhjuTYkMardZlXjsKWLk &&   sudo apt install ./preseed-creator_0.05.deb
+    log "INFO" "Checking dependencies..."
 
-# check if preseed-creator is installed
-if command -v preseed-creator -h &> /dev/null
-then
-    echo "preseed-creator is already installed"
-    preseed-creator -h
+    # Check xorriso
+    if ! command -v xorriso &> /dev/null; then
+        log "WARN" "xorriso not found"
+        deps_missing=true
     else
-    echo "preseed-creator could not be found, installing..."
-    wget https://framagit.org/fiat-tux/hat-softwares/preseed-creator/-/raw/main/preseed-creator
-    chmod +x preseed-creator
-    if [[ -f ./preseed-creator ]]; then
-      echo "preseed-creator downloaded successfully"
-    else
-      echo "Failed to download preseed-creator!"
-      exit 1
+        log_verbose "✓ xorriso installed"
     fi
-    # move to /usr/local/bin
-    sudo mv ${dirpath}/preseed-creator /usr/local/bin/
-    echo
-    preseed-creator -h
-fi
 
-# Download Debian netinst ISO
-echo "Downloading Debian ISO version ${debian_version} from ${iso_url} ..."
-mkdir -p ${dirpath}/${iso_directory}
-# Check if iso exists
-if [ -f "${dirpath}/${iso_directory}/${debian_iso_name}" ]; then
-    if [[ ${OVERRIDE_EXISTING_SOURCE_ISO} = true ]]; then
-        echo "Debian ISO already exists at ${iso_directory}/${debian_iso_name}, but OVERRIDE_EXISTING_SOURCE_ISO is set to true, re-downloading..."
-        rm -f ${dirpath}/${iso_directory}/${debian_iso_name}
-        wget ${iso_url} -O ${dirpath}/${iso_directory}/${debian_iso_name}
+    # Check isolinux
+    if ! dpkg -l 2>/dev/null | grep -q "^ii  isolinux"; then
+        log "WARN" "isolinux not found"
+        deps_missing=true
     else
-        echo "Debian ISO already exists at ${iso_directory}/${debian_iso_name}, skipping download."
+        log_verbose "✓ isolinux installed"
+    fi
+
+    # Check preseed-creator
+    if ! command -v preseed-creator &> /dev/null; then
+        log "WARN" "preseed-creator not found"
+        deps_missing=true
+    else
+        log_verbose "✓ preseed-creator installed"
+    fi
+
+    # Install if missing and AUTO_INSTALL_DEPS=true
+    if [ "$deps_missing" = "true" ]; then
+        if [ "$AUTO_INSTALL_DEPS" = "true" ]; then
+            log "INFO" "Installing missing dependencies..."
+            install_dependencies
+        else
+            log_error "Missing dependencies. Set AUTO_INSTALL_DEPS=true in .env to auto-install"
+            exit 1
+        fi
+    else
+        log "INFO" "✓ All dependencies satisfied"
+    fi
+}
+
+install_dependencies() {
+    # xorriso and isolinux
+    if ! command -v xorriso &> /dev/null || ! dpkg -l 2>/dev/null | grep -q "^ii  isolinux"; then
+        log "INFO" "Installing xorriso and isolinux..."
+        sudo apt-get update -qq
+        sudo apt-get install -y xorriso isolinux || {
+            log_error "Failed to install xorriso/isolinux"
+            exit 1
+        }
+        log_verbose "✓ xorriso and isolinux installed"
+    fi
+
+    # preseed-creator
+    if ! command -v preseed-creator &> /dev/null; then
+        log "INFO" "Installing preseed-creator..."
+        wget -q https://framagit.org/fiat-tux/hat-softwares/preseed-creator/-/raw/main/preseed-creator || {
+            log_error "Failed to download preseed-creator"
+            exit 1
+        }
+        chmod +x preseed-creator
+        sudo mv preseed-creator /usr/local/bin/ || {
+            log_error "Failed to install preseed-creator"
+            exit 1
+        }
+        log_verbose "✓ preseed-creator installed"
+    fi
+
+    log "INFO" "✓ Dependencies installed successfully"
+}
+
+# Run dependency check
+check_and_install_dependencies
+
+#--- Download Debian source ISO ---
+log "INFO" "Checking Debian source ISO..."
+mkdir -p "${dirpath}/${ISO_DIR}"
+iso_path="${dirpath}/${ISO_DIR}/${debian_iso_name}"
+
+if [ -f "${iso_path}" ]; then
+    if [[ "${OVERRIDE_EXISTING_SOURCE_ISO}" = "true" ]]; then
+        log "INFO" "Source ISO exists but OVERRIDE_EXISTING_SOURCE_ISO=true, re-downloading..."
+        rm -f "${iso_path}"
+        log "INFO" "Downloading Debian ${debian_version} ISO from ${iso_url}..."
+        wget "${iso_url}" -O "${iso_path}" || {
+            log_error "Failed to download Debian ISO!"
+            exit 1
+        }
+        log_success "Downloaded ${debian_iso_name}"
+    else
+        log "INFO" "Source ISO already exists, skipping download"
+        log_verbose "ISO path: ${iso_path}"
     fi
 else
-  echo "Debian ISO not found, downloading..."
-  wget ${iso_url} -O ${dirpath}/${iso_directory}/${debian_iso_name}
-  if [ $? -ne 0 ]; then
-    echo "Failed to download Debian ISO!"
+    log "INFO" "Source ISO not found, downloading..."
+    log "INFO" "Downloading Debian ${debian_version} from ${iso_url}..."
+    wget "${iso_url}" -O "${iso_path}" || {
+        log_error "Failed to download Debian ISO!"
+        exit 1
+    }
+    log_success "Downloaded ${debian_iso_name}"
+fi
+
+# TODO: Verify ISO checksum (LATER USE)
+# wget ${iso_checksum} -O SHA256SUMS
+# grep "${debian_iso_name}" SHA256SUMS | sha256sum -c -
+
+#--- Create customized ISO ---
+log "INFO" "Creating customized ISO with preseed..."
+working_dir_path="${dirpath}/${WORKING_DIR}"
+mkdir -p "${working_dir_path}"
+
+# Check if destination ISO exists
+custom_iso_path="${dirpath}/${ISO_DIR}/${custom_iso_name}"
+if [[ -f "${custom_iso_path}" ]]; then
+  if [[ "${OVERRIDE_EXISTING_CUSTOM_ISO}" = "true" ]]; then
+    log "INFO" "Custom ISO exists, backing up as ${custom_iso_name}.old"
+    mv "${custom_iso_path}" "${custom_iso_path}.old"
+  else
+    log_error "Custom ISO ${custom_iso_name} already exists. Set OVERRIDE_EXISTING_CUSTOM_ISO=true to overwrite."
     exit 1
   fi
 fi
 
-# Verify ISO checksum
-# echo "Verifying ISO checksum..."
-# wget ${iso_checksum} -O SHA256SUMS
-# grep "${iso_directory}/${iso_volume_name}" SHA256SUMS | sha256sum -c -  || { echo "Checksum verification failed!"; exit 1; }    
-# if [ $? -ne 0 ]; then
-#   echo "Checksum verification failed!"
-#   exit 1
-# else
-#   echo "Checksum verification passed."
-# fi
+log "INFO" "Running preseed-creator..."
+log_verbose "Source: ${iso_path}"
+log_verbose "Output: ${custom_iso_path}"
+log_verbose "Preseed: ${preseed_file_path}"
 
-# Create customized ISO with preseed file
-echo "Creating the customized ISO..."
-mkdir -p ${dirpath}${working_directory}
-# check if destination iso exist
-if [[ -f ${dirpath}/${iso_directory}/${custom_iso_name} ]]; then
-  echo "Customized ISO ${custom_iso_name} already exists in ${iso_directory}, renaming it first."
-  mv ${dirpath}/${iso_directory}/${custom_iso_name} ${dirpath}/${iso_directory}/${custom_iso_name}.old
-fi
+sudo preseed-creator \
+  -i "${iso_path}" \
+  -o "${custom_iso_path}" \
+  -p "${preseed_file_path}" \
+  -x -t 3 \
+  -w "${working_dir_path}" \
+  -v || {
+    log_error "Failed to create customized ISO!"
+    exit 1
+  }
 
-# sudo preseed-creator -i ./${iso_directory}/${debian_iso_name} -o ./${iso_directory}/${custom_iso_name} -p ./${preseed_dirname}/${preseed_file} -x -t 3  -v -w ${working_directory}
-sudo preseed-creator -i ${dirpath}/${iso_directory}/${debian_iso_name} -o ${dirpath}/${iso_directory}/${custom_iso_name} -p ${dirpath}/${preseed_dirname}/${preseed_file} -x -t 3 -w ${dirpath}${working_directory} -v 
-if [ $? -ne 0 ]; then
-  echo "Failed to create customized ISO!"
-  exit 1
-fi
+log_success "Custom ISO created: ${custom_iso_name}"
 
-# Generate md5 checksum file of our custom .iso
-echo "Generating md5 checksum of the customized ISO..."
-custom_iso_checksum=$(sha256sum ${dirpath}/${iso_directory}/${custom_iso_name} | awk '{print $1}')
-custom_iso_checksum_local=${dirpath}/${iso_directory}/${custom_iso_name}.md5
-echo "${custom_iso_checksum}" > ${custom_iso_checksum_local}
+#--- Generate checksum ---
+log "INFO" "Generating SHA256 checksum..."
+custom_iso_checksum=$(sha256sum "${custom_iso_path}" | awk '{print $1}')
+custom_iso_checksum_file="${custom_iso_path}.md5"
+echo "${custom_iso_checksum}" > "${custom_iso_checksum_file}"
+log_verbose "Checksum: ${custom_iso_checksum}"
+log_success "Checksum saved to ${custom_iso_name}.md5"
 
-################### Upload to Hypervisor or cloud platform #######################
-# TODO implement upload to cloud platform, eg: proxmox, aws, ... For Now dirty scp to (ESXI) hypervisor
-# TODO: option to upload or not the custom iso
-# echo "Uploading customized ISO to hypervisor..."
+#--- SSH Target Validation ---
+validate_ssh_target() {
+    # Check if SSH target is configured
+    if [ -z "$VMWARE_SSH_HOST_CONFIG" ]; then
+        log_error "VMWARE_SSH_HOST_CONFIG not set in .env"
+        return 1
+    fi
 
-echo "Uploading customized ISO to VMware ESXi host ${VMWARE_SSH_HOST_CONFIG} ..."
-# Upload md5 checksum of the custom .iso file
-scp ${custom_iso_checksum_local} ${VMWARE_SSH_HOST_CONFIG}:${VMWARE_ISO_UPLOAD_PATH}/
+    # Skip validation if explicitly disabled
+    if [ "$VALIDATE_SSH_TARGET" != "true" ]; then
+        log "WARN" "SSH target validation disabled (VALIDATE_SSH_TARGET=false)"
+        return 0
+    fi
 
-# Upload the custom .iso file
-scp ${dirpath}/${iso_directory}/${custom_iso_name} ${VMWARE_SSH_HOST_CONFIG}:${VMWARE_ISO_UPLOAD_PATH}/
+    # Check if target is reachable
+    log "INFO" "Validating SSH connectivity to ${VMWARE_SSH_HOST_CONFIG}..."
 
-# Compare checksum on remote host
-# # later - need to find simple way to do this with ssh
-# echo "Verifying uploaded ISO checksum on VMware ESXi host ${VMWARE_SSH_HOST_CONFIG}"
-# ssh ${VMWARE_SSH_HOST_CONFIG} "
-#   custom_iso_checksum_remote=$(cat ${VMWARE_ISO_UPLOAD_PATH}/${custom_iso_name}.md5)
-#   custom_iso_checksum=$(sha256sum ${VMWARE_ISO_UPLOAD_PATH}/${custom_iso_name} | awk '{print $1}')
-#   if [[ "${custom_iso_checksum_remote}" == "${custom_iso_checksum}" ]]; then
-#     echo "Customized ISO checksum matches the original."
-#   else
-#     echo "Warning: Customized ISO checksum does not match the original!"
-#   fi
-# "
+    if ssh -o ConnectTimeout=5 -o BatchMode=yes "$VMWARE_SSH_HOST_CONFIG" "echo 'SSH OK'" &>/dev/null; then
+        log_success "✓ SSH target ${VMWARE_SSH_HOST_CONFIG} is reachable"
+        return 0
+    else
+        log_error "✗ Cannot reach SSH target ${VMWARE_SSH_HOST_CONFIG}"
+        log_error "  Check: 1) SSH config, 2) Network (Cloudflare WARP/Tailscale), 3) Target host"
+        return 1
+    fi
+}
 
-if [ $? -ne 0 ]; then
-  echo "Failed to upload customized ISO to VMware ESXi host!"
-  exit 1
-fi 
-# echo "Customized ISO uploaded successfully to VMware ESXi host ${VMWARE_SSH_HOST_CONFIG} at path ${VMWARE_ISO_UPLOAD_PATH}/${custom_iso_name}"
+#--- Upload to remote host ---
+if [ "$UPLOAD_CUSTOM_ISO" = "true" ]; then
+    log "INFO" "Upload enabled, preparing to upload to ESXi host..."
 
+    # Validate SSH target
+    if ! validate_ssh_target; then
+        log_error "SSH validation failed. Skipping upload."
+        log "INFO" "Custom ISO available locally at: ${custom_iso_path}"
+        exit 1
+    fi
 
-# # delete the iso directory
-if [[ -d ${dirpath}${working_directory} ]]; then
-    echo "Cleaning up working directory ${dirpath}${working_directory} ..."
-    rmdir ${dirpath}${working_directory}
+    log "INFO" "Uploading to VMware ESXi host ${VMWARE_SSH_HOST_CONFIG}..."
+    log_verbose "Upload path: ${VMWARE_ISO_UPLOAD_PATH}"
+
+    # Upload checksum file
+    log "INFO" "Uploading checksum file..."
+    scp "${custom_iso_checksum_file}" "${VMWARE_SSH_HOST_CONFIG}:${VMWARE_ISO_UPLOAD_PATH}/" || {
+        log_error "Failed to upload checksum file!"
+        exit 1
+    }
+    log_verbose "✓ Checksum uploaded"
+
+    # Upload ISO file
+    log "INFO" "Uploading custom ISO (this may take a while)..."
+    scp "${custom_iso_path}" "${VMWARE_SSH_HOST_CONFIG}:${VMWARE_ISO_UPLOAD_PATH}/" || {
+        log_error "Failed to upload custom ISO!"
+        exit 1
+    }
+
+    log_success "✓ Upload complete"
+    log "INFO" "Remote location: ${VMWARE_SSH_HOST_CONFIG}:${VMWARE_ISO_UPLOAD_PATH}/${custom_iso_name}"
+
+    # TODO: Verify checksum on remote host (LATER USE)
+    # ssh ${VMWARE_SSH_HOST_CONFIG} "sha256sum ${VMWARE_ISO_UPLOAD_PATH}/${custom_iso_name}"
 else
-    echo "Working directory ${dirpath}${working_directory} not found, skipping cleanup."
+    log "INFO" "Upload disabled (UPLOAD_CUSTOM_ISO=false)"
+    log "INFO" "Custom ISO available locally at: ${custom_iso_path}"
 fi
 
-echo "Customized ISO created successfully at ${dirpath}/${iso_directory}/${custom_iso_name} and uploaded to VMware ESXi host ${VMWARE_SSH_HOST_CONFIG} at path ${VMWARE_ISO_UPLOAD_PATH}/${custom_iso_name}"
+#--- Cleanup ---
+if [ "$KEEP_WORKING_DIRECTORY" = "true" ]; then
+    log "INFO" "Keeping working directory (KEEP_WORKING_DIRECTORY=true)"
+    log_verbose "Working directory: ${working_dir_path}"
+else
+    if [[ -d "${working_dir_path}" ]]; then
+        log "INFO" "Cleaning up working directory..."
+        rm -rf "${working_dir_path}"
+        log_verbose "✓ Working directory removed"
+    else
+        log_verbose "Working directory not found, nothing to clean"
+    fi
+fi
+
+#--- Summary ---
+log_success "==================================="
+log_success "Custom ISO Builder completed successfully!"
+log_success "==================================="
+log "INFO" "Local ISO: ${custom_iso_path}"
+if [ "$UPLOAD_CUSTOM_ISO" = "true" ]; then
+    log "INFO" "Remote ISO: ${VMWARE_SSH_HOST_CONFIG}:${VMWARE_ISO_UPLOAD_PATH}/${custom_iso_name}"
+fi
+log "INFO" "Build completed at $(date '+%Y-%m-%d %H:%M:%S')"
+
 exit 0
 
 # End of script

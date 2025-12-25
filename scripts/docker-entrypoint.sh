@@ -12,7 +12,18 @@ setup_ssh_credentials() {
     
     # Auto-detect mode if not specified
     if [ "$ssh_mode" = "auto" ]; then
-        if [ -d "$HOME/.ssh" ] && [ -f "$HOME/.ssh/config" ]; then
+        # Create universal symlink for ANY user (isobuilder OR root)
+        SSH_LINK_TARGET="${HOME}/.ssh"
+        # Remove old symlink if exists
+        [ -L "${SSH_LINK_TARGET}" ] && rm "${SSH_LINK_TARGET}"
+        
+        # Create symlink to mounted SSH
+        ln -s /app/.ssh "${SSH_LINK_TARGET}"
+        chmod 700 "${SSH_LINK_TARGET}"
+        
+        echo "[ENTRYPOINT] ✓ SSH symlink created: ${SSH_LINK_TARGET} → /app/.ssh"
+
+        if [ -d "${SSH_LINK_TARGET}" ] && [ -f "${SSH_LINK_TARGET}"/config* ]; then
             ssh_mode="config"
             echo "[ENTRYPOINT] Auto-detected SSH mode: config (mounted)"
         else
@@ -90,7 +101,7 @@ SSHCONFIG
 verify_directories() {
     echo "[ENTRYPOINT] Verifying directory structure..."
     
-    local required_dirs=("/app/config" "/app/preseeds" "/app/ISOs")
+    local required_dirs=("/app/configs" "/app/preseeds" "/app/ISOs")
     local missing=false
     
     for dir in "${required_dirs[@]}"; do
@@ -143,7 +154,17 @@ main() {
     # Execute the command passed to the container
     if [ $# -eq 0 ]; then
         echo "[ENTRYPOINT] No command provided, using default: /app/create-iso.sh"
-        exec /app/create-iso.sh
+        # ALWAYS run the script first, THEN keep alive
+        echo "[ENTRYPOINT] Running main script..."
+        # Call the script with sudo, could not find a better way to run with elevated permissions as non-root user
+        # -> User isobuilder has limited sudo rights scoped to /app/create-iso.sh only.
+        sudo /app/create-iso.sh || echo "Script failed but keeping container alive"
+        
+        echo "[ENTRYPOINT] Script complete - keeping container alive for inspection..."
+        exec tail -f /dev/null
+
+        # exec /app/create-iso.sh
+        # exec tail -f /dev/null
     else
         echo "[ENTRYPOINT] Executing command: $*"
         exec "$@"

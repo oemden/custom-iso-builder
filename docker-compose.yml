@@ -25,7 +25,8 @@ services:
       - ./ISOs:/app/ISOs
 
       # SSH configuration (local development mode)
-      - ~/.ssh:/home/isobuilder/.ssh:ro
+      - ~/.ssh:/app/.ssh:ro # mount ssh config to /app/.ssh ( local mode only, will be mapped to $HOME/.ssh in entrypoint )
+      # - ~/.ssh:/home/isobuilder/.ssh:ro
 
     working_dir: /app
 

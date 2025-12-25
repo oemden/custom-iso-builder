@@ -1,0 +1,48 @@
+# version: '3.8'
+
+services:
+  iso-builder:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: custom-iso-builder:latest
+    container_name: iso-builder
+    # fix .iso mount issues in container
+    cap_add:
+      - SYS_ADMIN
+    devices:
+      - /dev/loop-control:/dev/loop-control
+      - /dev/loop0:/dev/loop0
+      - /dev/loop1:/dev/loop1
+      - /dev/loop2:/dev/loop2
+    # Mount directories with fixed container paths
+    volumes:
+      # Read-only configuration and templates
+      - ./configs:/app/configs:ro
+      - ./preseeds:/app/preseeds:ro
+
+      # Read-write ISO output directory
+      - ./ISOs:/app/ISOs
+
+      # SSH configuration (local development mode)
+      - ~/.ssh:/home/isobuilder/.ssh:ro
+
+    working_dir: /app
+
+    # Load .env file as environment variables (Docker handles expansion)
+    env_file:
+      - .env
+
+    # Additional environment variables
+    environment:
+      - DOCKER_CONTAINER=true
+      - SSH_MODE=config  # Use mounted SSH config (best for GitOps)
+      - UPLOAD_CUSTOM_ISO=false  # Default to local-only for safety
+      - AUTO_INSTALL_DEPS=true  # Auto-install dependencies
+      - OVERRIDE_EXISTING_CUSTOM_ISO=false  # Overwrite existing ISOs
+
+    # Command to run automatically
+    # command: ["/app/create-iso.sh"]
+    
+    # Network mode
+    network_mode: bridge

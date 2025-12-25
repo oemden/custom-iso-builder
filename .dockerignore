@@ -1,0 +1,43 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Environment files (mounted at runtime)
+.env
+!.env.example
+
+# Output files (mounted volumes)
+ISOs/*.iso
+ISOs/*.md5
+ISOs/*.old
+custom-iso-workdir/
+custom-iso-workdir/*
+
+# Documentation
+*.md
+!README.md
+PLAN.md
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS files
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.log
+*.bak
+*.old
+
+# Docker files (not needed in image)
+docker-compose*.yml
+Dockerfile
+.dockerignore

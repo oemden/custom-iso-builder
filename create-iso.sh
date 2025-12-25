@@ -8,6 +8,13 @@
 
 SCRIPT_VERSION="0.2.0"
 
+#--- must run sudo
+# if [ `id -u` -ne 0 ] ; then
+# 	printf " == Must be run as sudo, exiting == "
+# 	echo 
+# 	exit 1
+# fi
+
 #--- Logging functions ---
 log() {
     local level=$1
@@ -30,25 +37,57 @@ log_success() {
     log "SUCCESS" "$@"
 }
 
-#--- Configuration ---
-dirpath=$(pwd)
-
-# Source config variables
-log "INFO" "Custom ISO Builder v${SCRIPT_VERSION}"
-log "INFO" "Loading configuration..."
-
-source ./.env
-source ${dirpath}/config/debian13.1.0.cfg
-if [ $? -ne 0 ]; then
-  log_error "Failed to source config file!"
-  exit 1
+#--- Docker Detection ---
+# Detect if running inside Docker container
+if [ -f /.dockerenv ] || [ "$DOCKER_CONTAINER" = "true" ]; then
+    RUNNING_IN_DOCKER=true
+    dirpath="/app"
+else
+    RUNNING_IN_DOCKER=false
+    dirpath=$(pwd)
 fi
 
+# #--- Privilege Check ---
+# if [ "$RUNNING_IN_DOCKER" != "true" ] && [ "$EUID" -ne 0 ]; then
+#     log_error "This script requires root privileges. Please run as root or use sudo."
+#     exit 1
+# fi
+
+
+
 # Hardcoded paths (for Docker compatibility)
-CONFIG_DIR="config"
+CONFIG_DIR="configs"
+BUILD_DIR="${CONFIG_DIR}/build"
 PRESEED_DIR="preseeds"
 ISO_DIR="ISOs"
 WORKING_DIR="custom-iso-workdir"
+
+log "INFO" "Loading Debian version configuration..."
+
+# Look for config file in configs/build/ directory
+build_dir="${dirpath}/${BUILD_DIR}"
+config_files=("${build_dir}"/*.cfg)
+
+if [ ${#config_files[@]} -eq 0 ] || [ ! -f "${config_files[0]}" ]; then
+    log_error "No config file found in ${build_dir}/"
+    log_error "Copy a config file to configs/build/ to proceed"
+    exit 1
+elif [ ${#config_files[@]} -eq 1 ]; then
+    config_file=$(basename "${config_files[0]}")
+    log "INFO" "Found config in build/: ${config_file}"
+    source "${build_dir}/${config_file}"
+    if [ $? -ne 0 ]; then
+        log_error "Failed to source config file: ${config_file}"
+        exit 1
+    fi
+else
+    log_error "Multiple config files found in ${build_dir}/"
+    log_error "Only one config allowed in build/ directory"
+    for cfg in "${config_files[@]}"; do
+        log_error "  - $(basename "$cfg")"
+    done
+    exit 1
+fi
 
 log_verbose "Configuration loaded successfully"
 log_verbose "Debian version: ${debian_version}"
@@ -122,8 +161,8 @@ install_dependencies() {
     # xorriso and isolinux
     if ! command -v xorriso &> /dev/null || ! dpkg -l 2>/dev/null | grep -q "^ii  isolinux"; then
         log "INFO" "Installing xorriso and isolinux..."
-        sudo apt-get update -qq
-        sudo apt-get install -y xorriso isolinux || {
+        apt-get update -qq
+        apt-get install -y xorriso isolinux || {
             log_error "Failed to install xorriso/isolinux"
             exit 1
         }
@@ -138,7 +177,7 @@ install_dependencies() {
             exit 1
         }
         chmod +x preseed-creator
-        sudo mv preseed-creator /usr/local/bin/ || {
+        mv preseed-creator /usr/local/bin/ || {
             log_error "Failed to install preseed-creator"
             exit 1
         }
@@ -206,16 +245,27 @@ log_verbose "Source: ${iso_path}"
 log_verbose "Output: ${custom_iso_path}"
 log_verbose "Preseed: ${preseed_file_path}"
 
-sudo preseed-creator \
+# extra output
+echo "-------"
+echo "Source: ${iso_path}" ; ls -l "${iso_path}"
+echo "Output: ${custom_iso_path}" 
+echo "Preseed: ${preseed_file_path}" ; ls -l "${preseed_file_path}"
+echo "working_dir_path: ${working_dir_path}" ; ls -l "${working_dir_path}"
+which xorriso
+# which isolinux
+which preseed-creator
+echo "-------"
+
+/usr/local/bin/preseed-creator \
   -i "${iso_path}" \
   -o "${custom_iso_path}" \
   -p "${preseed_file_path}" \
   -x -t 3 \
-  -w "${working_dir_path}" \
   -v || {
     log_error "Failed to create customized ISO!"
     exit 1
   }
+#   -w "${working_dir_path}" \
 
 log_success "Custom ISO created: ${custom_iso_name}"
 

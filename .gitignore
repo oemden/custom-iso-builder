@@ -1,2 +1,28 @@
+# Environment files
 .env
 !.env.example
+
+# ISO files
+ISOs/*.iso
+ISOs/*.md5
+ISOs/*.old
+
+# Working directories
+custom-iso-workdir/
+custom-iso-workdir/*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.log
+*.bak

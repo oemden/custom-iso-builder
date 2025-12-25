@@ -61,6 +61,10 @@ ISOs/       - Source and custom ISOs
 - [ ] Docker/docker-compose support
 - [ ] Multi-target support (Proxmox, AWS, etc.)
 
+## Cloudflare
+
+To get docker build download `preseed-creator` ( with `wget` or `curl` ) I had to add **framagit.org** to a "Do Not Inspect" Gateway HTTP policy.
+
 ## Main Contributor
 
 oem <oem@mobiloem>

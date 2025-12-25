@@ -1,19 +1,20 @@
 #!/bin/bash
 #================================
 # Custom ISO Builder
-# Version: 0.2.0
+# Version: 0.2.1
 #================================
 # This script creates a customized Debian ISO with a preseed file for automated installation.
 # iso creation based on preseed-creator tool: https://framagit.org/fiat-tux/hat-softwares/preseed-creator/
 
-SCRIPT_VERSION="0.2.0"
+SCRIPT_VERSION="0.2.1"
 
 #--- must run sudo
-# if [ `id -u` -ne 0 ] ; then
-# 	printf " == Must be run as sudo, exiting == "
-# 	echo 
-# 	exit 1
-# fi
+if [ `id -u` -ne 0 ] ; then
+	printf " == Must be run as sudo, exiting == "
+    log_error "This script requires root privileges. Please run as root or use sudo."
+	echo 
+	exit 1
+fi
 
 #--- Logging functions ---
 log() {
@@ -47,21 +48,31 @@ else
     dirpath=$(pwd)
 fi
 
-# #--- Privilege Check ---
-# if [ "$RUNNING_IN_DOCKER" != "true" ] && [ "$EUID" -ne 0 ]; then
-#     log_error "This script requires root privileges. Please run as root or use sudo."
-#     exit 1
-# fi
-
-
-
 # Hardcoded paths (for Docker compatibility)
 CONFIG_DIR="configs"
 BUILD_DIR="${CONFIG_DIR}/build"
+SCRIPT_OPTIONS="${CONFIG_DIR}/custom-iso-builder.cfg"
 PRESEED_DIR="preseeds"
 ISO_DIR="ISOs"
 WORKING_DIR="custom-iso-workdir"
 
+log "INFO" "Loading Script options"
+
+#--- Load Configuration ---
+if [ ! -f "${dirpath}/${SCRIPT_OPTIONS}" ]; then
+    log "INFO" "script options file not found: ${SCRIPT_OPTIONS}"
+    log "INFO" "Please create custom-iso-builder.cfg from custom-iso-builder-example.cfg in ${CONFIG_DIR}/"
+    log "INFO" "loading defaults options"
+elif [ -f "${dirpath}/${SCRIPT_OPTIONS}" ]; then
+    log "INFO" "Sourcing script options from ${SCRIPT_OPTIONS}..."
+    source "${dirpath}/${SCRIPT_OPTIONS}"
+    if [ $? -ne 0 ]; then
+        log_error "Failed to source script options file: ${SCRIPT_OPTIONS}"
+        exit 1
+    fi
+fi
+
+#--- Load Build Config ---
 log "INFO" "Loading Debian version configuration..."
 
 # Look for config file in configs/build/ directory
@@ -245,15 +256,19 @@ log_verbose "Source: ${iso_path}"
 log_verbose "Output: ${custom_iso_path}"
 log_verbose "Preseed: ${preseed_file_path}"
 
-# extra output
+# # extra output
 echo "-------"
 echo "Source: ${iso_path}" ; ls -l "${iso_path}"
 echo "Output: ${custom_iso_path}" 
 echo "Preseed: ${preseed_file_path}" ; ls -l "${preseed_file_path}"
 echo "working_dir_path: ${working_dir_path}" ; ls -l "${working_dir_path}"
-which xorriso
-# which isolinux
-which preseed-creator
+echo "AUTO_INSTALL_DEPS: ${AUTO_INSTALL_DEPS}" 
+echo "OVERRIDE_EXISTING_SOURCE_ISO: ${OVERRIDE_EXISTING_SOURCE_ISO}" 
+echo "OVERRIDE_EXISTING_CUSTOM_ISO: ${OVERRIDE_EXISTING_CUSTOM_ISO}" 
+echo "UPLOAD_CUSTOM_ISO: ${UPLOAD_CUSTOM_ISO}" 
+echo "VALIDATE_SSH_TARGET: ${VALIDATE_SSH_TARGET}" 
+echo "KEEP_WORKING_DIRECTORY: ${KEEP_WORKING_DIRECTORY}" 
+echo "VERBOSE_MODE: ${VERBOSE_MODE}" 
 echo "-------"
 
 /usr/local/bin/preseed-creator \
@@ -367,6 +382,6 @@ if [ "$UPLOAD_CUSTOM_ISO" = "true" ]; then
 fi
 log "INFO" "Build completed at $(date '+%Y-%m-%d %H:%M:%S')"
 
-exit 0
+# exit 0
 
 # End of script

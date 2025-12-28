@@ -4,7 +4,7 @@ services:
   iso-builder:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile-user
     image: custom-iso-builder:latest
     container_name: iso-builder
     # fix .iso mount issues in container
@@ -37,10 +37,10 @@ services:
     # Additional environment variables
     environment:
       - DOCKER_CONTAINER=true
-      - SSH_MODE=config  # Use mounted SSH config (best for GitOps)
-      - UPLOAD_CUSTOM_ISO=false  # Default to local-only for safety
-      - AUTO_INSTALL_DEPS=true  # Auto-install dependencies
-      - OVERRIDE_EXISTING_CUSTOM_ISO=false  # Overwrite existing ISOs
+      - SSH_MODE=config  # {auto,config,env }Use mounted SSH config (best for GitOps)
+      # - UPLOAD_CUSTOM_ISO=true  # defaults, bypassed by configs/custom-iso-builder.cfg
+      # - AUTO_INSTALL_DEPS=true  # Auto-install dependencies
+      # - OVERRIDE_EXISTING_CUSTOM_ISO=false  # Overwrite existing ISOs
 
     # Command to run automatically
     # command: ["/app/create-iso.sh"]

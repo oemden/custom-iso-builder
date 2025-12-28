@@ -7,23 +7,20 @@ set -e
 #--- SSH Setup Function ---
 setup_ssh_credentials() {
     local ssh_mode="${SSH_MODE:-auto}"
+    # Create universal symlink for ANY user (isobuilder OR root)
+    SSH_APP_MOUNT="/app/.ssh"
+    SSH_LINK_TARGET="${HOME}/.ssh"
     
+    echo "======================"
+    echo "[ENTRYPOINT] SSH_APP_MOUNT: ${SSH_APP_MOUNT}"
+    echo "[ENTRYPOINT] SSH_LINK_TARGET: ${SSH_LINK_TARGET}"
+    echo "======================"
+
     echo "[ENTRYPOINT] SSH Mode: $ssh_mode"
     
     # Auto-detect mode if not specified
     if [ "$ssh_mode" = "auto" ]; then
-        # Create universal symlink for ANY user (isobuilder OR root)
-        SSH_LINK_TARGET="${HOME}/.ssh"
-        # Remove old symlink if exists
-        [ -L "${SSH_LINK_TARGET}" ] && rm "${SSH_LINK_TARGET}"
-        
-        # Create symlink to mounted SSH
-        ln -s /app/.ssh "${SSH_LINK_TARGET}"
-        chmod 700 "${SSH_LINK_TARGET}"
-        
-        echo "[ENTRYPOINT] ✓ SSH symlink created: ${SSH_LINK_TARGET} → /app/.ssh"
-
-        if [ -d "${SSH_LINK_TARGET}" ] && [ -f "${SSH_LINK_TARGET}"/config* ]; then
+        if [[ -d "${SSH_APP_MOUNT}" ]] && [[ "${SSH_APP_MOUNT}"/config* ]]; then
             ssh_mode="config"
             echo "[ENTRYPOINT] Auto-detected SSH mode: config (mounted)"
         else
@@ -32,6 +29,8 @@ setup_ssh_credentials() {
         fi
     fi
     
+    echo "[ENTRYPOINT] SSH Mode2: $ssh_mode"
+
     if [ "$ssh_mode" = "env" ]; then
         echo "[ENTRYPOINT] Setting up SSH credentials from environment variables..."
         
@@ -79,6 +78,17 @@ SSHCONFIG
             echo "  VMWARE_SSH_USER=${VMWARE_SSH_USER:-<not set>}"
         fi
     else
+        # we are in ssh Config mode
+        # Remove old symlink if exists
+        [ -L "${SSH_LINK_TARGET}" ] && rm "${SSH_LINK_TARGET}"
+        echo "========= WTF 00 =========="
+        # Create symlink to mounted SSH
+        ln -s "${SSH_APP_MOUNT}" "${HOME}"
+        # chmod 700 "${SSH_LINK_TARGET}"
+        ls "${SSH_LINK_TARGET}"
+        echo "[ENTRYPOINT] ✓ SSH symlink created: ${SSH_LINK_TARGET} → /app/.ssh"
+        echo "========= WTF 00 =========="
+
         echo "[ENTRYPOINT] Using existing SSH configuration from mounted ~/.ssh"
         
         # Verify SSH config exists
@@ -137,7 +147,7 @@ main() {
     echo "Version: 0.2.0"
     echo "==========================================="
     echo ""
-    
+
     # Run verification checks
     verify_directories
     verify_env_vars
@@ -158,13 +168,12 @@ main() {
         echo "[ENTRYPOINT] Running main script..."
         # Call the script with sudo, could not find a better way to run with elevated permissions as non-root user
         # -> User isobuilder has limited sudo rights scoped to /app/create-iso.sh only.
-        sudo /app/create-iso.sh || echo "Script failed but keeping container alive"
-        
+        # isobuilder user -> use sudo
+        # sudo -E /app/create-iso.sh || echo "Script failed but keeping container alive"
+        # root user -> no sudo
+        sudo -E /app/create-iso.sh || echo "Script failed but keeping container alive"
         echo "[ENTRYPOINT] Script complete - keeping container alive for inspection..."
         exec tail -f /dev/null
-
-        # exec /app/create-iso.sh
-        # exec tail -f /dev/null
     else
         echo "[ENTRYPOINT] Executing command: $*"
         exec "$@"

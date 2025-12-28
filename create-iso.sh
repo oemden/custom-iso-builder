@@ -8,13 +8,6 @@
 
 SCRIPT_VERSION="0.2.1"
 
-#--- must run sudo
-if [ `id -u` -ne 0 ] ; then
-	printf " == Must be run as sudo, exiting == "
-    log_error "This script requires root privileges. Please run as root or use sudo."
-	echo 
-	exit 1
-fi
 
 #--- Logging functions ---
 log() {
@@ -38,6 +31,14 @@ log_success() {
     log "SUCCESS" "$@"
 }
 
+#--- must run sudo
+if [ `id -u` -ne 0 ] ; then
+	printf " == Must be run as sudo, exiting == "
+    log_error "This script requires root privileges. Please run as root or use sudo."
+	echo 
+	exit 1
+fi
+
 #--- Docker Detection ---
 # Detect if running inside Docker container
 if [ -f /.dockerenv ] || [ "$DOCKER_CONTAINER" = "true" ]; then
@@ -55,6 +56,9 @@ SCRIPT_OPTIONS="${CONFIG_DIR}/custom-iso-builder.cfg"
 PRESEED_DIR="preseeds"
 ISO_DIR="ISOs"
 WORKING_DIR="custom-iso-workdir"
+
+log "echo variables"
+extra_output
 
 log "INFO" "Loading Script options"
 
@@ -256,20 +260,6 @@ log_verbose "Source: ${iso_path}"
 log_verbose "Output: ${custom_iso_path}"
 log_verbose "Preseed: ${preseed_file_path}"
 
-# # extra output
-echo "-------"
-echo "Source: ${iso_path}" ; ls -l "${iso_path}"
-echo "Output: ${custom_iso_path}" 
-echo "Preseed: ${preseed_file_path}" ; ls -l "${preseed_file_path}"
-echo "working_dir_path: ${working_dir_path}" ; ls -l "${working_dir_path}"
-echo "AUTO_INSTALL_DEPS: ${AUTO_INSTALL_DEPS}" 
-echo "OVERRIDE_EXISTING_SOURCE_ISO: ${OVERRIDE_EXISTING_SOURCE_ISO}" 
-echo "OVERRIDE_EXISTING_CUSTOM_ISO: ${OVERRIDE_EXISTING_CUSTOM_ISO}" 
-echo "UPLOAD_CUSTOM_ISO: ${UPLOAD_CUSTOM_ISO}" 
-echo "VALIDATE_SSH_TARGET: ${VALIDATE_SSH_TARGET}" 
-echo "KEEP_WORKING_DIRECTORY: ${KEEP_WORKING_DIRECTORY}" 
-echo "VERBOSE_MODE: ${VERBOSE_MODE}" 
-echo "-------"
 
 /usr/local/bin/preseed-creator \
   -i "${iso_path}" \
@@ -291,6 +281,32 @@ custom_iso_checksum_file="${custom_iso_path}.md5"
 echo "${custom_iso_checksum}" > "${custom_iso_checksum_file}"
 log_verbose "Checksum: ${custom_iso_checksum}"
 log_success "Checksum saved to ${custom_iso_name}.md5"
+
+#--- Echo variables ---
+function extra_output() {
+echo "-------"
+echo "Source: ${iso_path}" ; ls -l "${iso_path}"
+echo "Output: ${custom_iso_path}" 
+echo "Preseed: ${preseed_file_path}" ; ls -l "${preseed_file_path}"
+echo "working_dir_path: ${working_dir_path}" ; ls -l "${working_dir_path}"
+echo "AUTO_INSTALL_DEPS: ${AUTO_INSTALL_DEPS}" 
+echo "OVERRIDE_EXISTING_SOURCE_ISO: ${OVERRIDE_EXISTING_SOURCE_ISO}" 
+echo "OVERRIDE_EXISTING_CUSTOM_ISO: ${OVERRIDE_EXISTING_CUSTOM_ISO}" 
+echo "UPLOAD_CUSTOM_ISO: ${UPLOAD_CUSTOM_ISO}" 
+echo "VALIDATE_SSH_TARGET: ${VALIDATE_SSH_TARGET}" 
+echo "KEEP_WORKING_DIRECTORY: ${KEEP_WORKING_DIRECTORY}" 
+echo "VERBOSE_MODE: ${VERBOSE_MODE}" 
+echo "VMWARE_SSH_HOST_CONFIG: ${VMWARE_SSH_HOST_CONFIG}"
+echo "VMWARE_SSH_HOST_CONFIG: $VMWARE_SSH_HOST_CONFIG"
+echo "VMWARE_DATASTORE: $VMWARE_DATASTORE"
+echo "VMWARE_ISO_DIRPATH: $VMWARE_ISO_DIRPATH"
+echo "VMWARE_VOLUMES_PATH: $VMWARE_VOLUMES_PATH"
+echo "VMWARE_DATASTORE_PATH: $VMWARE_DATASTORE_PATH"
+echo "VMWARE_ISO_UPLOAD_PATH: $VMWARE_ISO_UPLOAD_PATH"
+echo "-------"
+}
+
+extra_output
 
 #--- SSH Target Validation ---
 validate_ssh_target() {

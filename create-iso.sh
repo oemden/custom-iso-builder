@@ -1,13 +1,11 @@
 #!/bin/bash
 #================================
 # Custom ISO Builder
-# Version: 0.2.1
 #================================
 # This script creates a customized Debian ISO with a preseed file for automated installation.
 # iso creation based on preseed-creator tool: https://framagit.org/fiat-tux/hat-softwares/preseed-creator/
 
-SCRIPT_VERSION="0.2.1"
-
+SCRIPT_VERSION="0.2.2"
 
 #--- Logging functions ---
 log() {
@@ -325,14 +323,46 @@ validate_ssh_target() {
     # Check if target is reachable
     log "INFO" "Validating SSH connectivity to ${VMWARE_SSH_HOST_CONFIG}..."
 
-    if ssh -o ConnectTimeout=5 -o BatchMode=yes "$VMWARE_SSH_HOST_CONFIG" "echo 'SSH OK'" &>/dev/null; then
+    #####################
+    log_verbose "DEBUG: HOME=$HOME"
+    log_verbose "DEBUG: USER=$USER"
+    log_verbose "DEBUG: whoami=$(whoami)"
+    log_verbose "DEBUG: SSH config check:"
+    ls -la ~/.ssh/ || echo "~/.ssh not found"
+    ls -la $HOME/.ssh/ || echo "\$HOME/.ssh not found"
+    #####################
+
+    # if ssh -o ConnectTimeout=5 -o BatchMode=yes "$VMWARE_SSH_HOST_CONFIG" "echo 'SSH OK'" &>/dev/null; then
+    #     log_success "✓ SSH target ${VMWARE_SSH_HOST_CONFIG} is reachable"
+    #     return 0
+    # else
+    #     log_error "✗ Cannot reach SSH target ${VMWARE_SSH_HOST_CONFIG}"
+    #     log_error "  Check: 1) SSH config, 2) Network (Cloudflare WARP/Tailscale), 3) Target host"
+    #     return 1
+    # fi
+    log "INFO" "Validating SSH connectivity to ${VMWARE_SSH_HOST_CONFIG}..."
+
+    # Debug output
+    log_verbose "Running: ssh -v -o ConnectTimeout=5 -o BatchMode=yes \"$VMWARE_SSH_HOST_CONFIG\" \"echo 'SSH OK'\""
+
+    # Run with verbose to capture errors
+    ssh_output=$(ssh -vv -o ConnectTimeout=5 -o BatchMode=yes "$VMWARE_SSH_HOST_CONFIG" "echo 'SSH OK'" 2>&1)
+    ssh_exit_code=$?
+
+    if [ $ssh_exit_code -eq 0 ]; then
         log_success "✓ SSH target ${VMWARE_SSH_HOST_CONFIG} is reachable"
         return 0
     else
         log_error "✗ Cannot reach SSH target ${VMWARE_SSH_HOST_CONFIG}"
+        log_error "SSH exit code: $ssh_exit_code"
+        log_error "SSH output:"
+        echo "$ssh_output" | while IFS= read -r line; do
+            log_error "  $line"
+        done
         log_error "  Check: 1) SSH config, 2) Network (Cloudflare WARP/Tailscale), 3) Target host"
         return 1
     fi
+
 }
 
 #--- Upload to remote host ---

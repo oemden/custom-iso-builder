@@ -4,7 +4,7 @@ services:
   iso-builder:
     build:
       context: .
-      dockerfile: Dockerfile-user
+      dockerfile: Dockerfile-root
     image: custom-iso-builder:latest
     container_name: iso-builder
     # fix .iso mount issues in container

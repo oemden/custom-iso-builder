@@ -10,6 +10,7 @@ ISOs/*.old
 # Working directories
 custom-iso-workdir/
 custom-iso-workdir/*
+work
 
 # OS files
 .DS_Store

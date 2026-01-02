@@ -328,8 +328,8 @@ validate_ssh_target() {
     log_verbose "DEBUG: USER=$USER"
     log_verbose "DEBUG: whoami=$(whoami)"
     log_verbose "DEBUG: SSH config check:"
-    ls -la ~/.ssh/ || echo "~/.ssh not found"
-    ls -la $HOME/.ssh/ || echo "\$HOME/.ssh not found"
+    # ls -la ~/.ssh/ || echo "~/.ssh not found"
+    # ls -la $HOME/.ssh/ || echo "\$HOME/.ssh not found"
     #####################
 
     # if ssh -o ConnectTimeout=5 -o BatchMode=yes "$VMWARE_SSH_HOST_CONFIG" "echo 'SSH OK'" &>/dev/null; then
@@ -346,7 +346,7 @@ validate_ssh_target() {
     log_verbose "Running: ssh -v -o ConnectTimeout=5 -o BatchMode=yes \"$VMWARE_SSH_HOST_CONFIG\" \"echo 'SSH OK'\""
 
     # Run with verbose to capture errors
-    ssh_output=$(ssh -vv -o ConnectTimeout=5 -o BatchMode=yes "$VMWARE_SSH_HOST_CONFIG" "echo 'SSH OK'" 2>&1)
+    ssh_output=$(ssh -v -o ConnectTimeout=5 -o BatchMode=yes "$VMWARE_SSH_HOST_CONFIG" "echo 'SSH OK'" 2>&1)
     ssh_exit_code=$?
 
     if [ $ssh_exit_code -eq 0 ]; then
@@ -378,6 +378,9 @@ if [ "$UPLOAD_CUSTOM_ISO" = "true" ]; then
 
     log "INFO" "Uploading to VMware ESXi host ${VMWARE_SSH_HOST_CONFIG}..."
     log_verbose "Upload path: ${VMWARE_ISO_UPLOAD_PATH}"
+
+    # TODO: Create remote directory if it doesn't exist (LATER USE)
+    # TODO: loading bar for upload (LATER USE)
 
     # Upload checksum file
     log "INFO" "Uploading checksum file..."

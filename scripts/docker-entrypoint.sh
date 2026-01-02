@@ -173,8 +173,15 @@ main() {
         # root user -> no sudo
         sudo -E /app/create-iso.sh || echo "Script failed but keeping container alive"
         # TODO: Add option to not keep alive after script completion KEEP_ALIVE=true|false
-        echo "[ENTRYPOINT] Script complete - keeping container alive for inspection..."
-        exec tail -f /dev/null
+        if [ "${ISO_BUILDER_KEEP_ALIVE:-false}" = "true" ]; then
+            echo "[ENTRYPOINT] ISO_BUILDER_KEEP_ALIVE is true - keeping container alive after script completion"
+            echo "[ENTRYPOINT] Script complete - keeping container alive for inspection..."
+            exec tail -f /dev/null
+        else
+            echo "[ENTRYPOINT] ISO_BUILDER_KEEP_ALIVE is false - exiting container after script completion"
+            echo "[ENTRYPOINT] Script complete - exiting container."
+            exit 0
+        fi
     else
         echo "[ENTRYPOINT] Executing command: $*"
         exec "$@"

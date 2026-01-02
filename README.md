@@ -43,7 +43,7 @@ See `.env.example` for full documentation.
 ## Directory Structure
 
 ```
-config/     - Debian version configs
+configs/    - Debian version configs
 preseeds/   - Preseed templates
 ISOs/       - Source and custom ISOs
 ```
@@ -58,7 +58,7 @@ ISOs/       - Source and custom ISOs
 
 - [ ] Verify remote checksum after upload
 - [ ] Variable substitution in preseed files
-- [ ] Docker/docker-compose support
+- [x] Docker/docker-compose support
 - [ ] Multi-target support (Proxmox, AWS, etc.)
 
 ## Cloudflare

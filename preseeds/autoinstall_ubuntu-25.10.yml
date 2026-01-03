@@ -1,0 +1,50 @@
+#cloud-config
+autoinstall:
+  version: 1
+  
+  # Basic localization
+  locale: en_US.UTF-8
+  keyboard:
+    layout: us
+  
+  # Network (DHCP auto-config)
+  network:
+    network:
+      version: 2
+      ethernets:
+        any:
+          match:
+            name: en*
+          dhcp4: true
+  
+  # Disk partitioning (equivalent to preseed "atomic")
+  storage:
+    layout:
+      name: direct
+  
+  # Minimal user for SSH access
+  identity:
+    hostname: localhost
+    username: setup_admin
+    password: "$6$ycf9sjoobhOfX78H$vk9BApLFjAKAoW3drZNQwXF0aQCZaXlphTgfiLLkjg0toKg2oYL7Tqr8k3RmYv5BFT.r7.8oPUpDy/u4VGY9U1"
+  
+  # SSH server
+  ssh:
+    install-server: true
+    allow-pw: true
+  
+  # Minimal packages
+  packages:
+    - cloud-init
+    - openssh-server
+    - open-vm-tools
+    - sudo
+    - sed
+    - curl
+
+  # Post-install: SSH + sudo only
+  late-commands:
+    - echo 'setup_admin ALL=(ALL) NOPASSWD:ALL' > /target/etc/sudoers.d/setup_admin
+    - chmod 440 /target/etc/sudoers.d/setup_admin
+    - curtin in-target --target=/target -- systemctl enable ssh
+    - curtin in-target --target=/target -- systemctl start ssh

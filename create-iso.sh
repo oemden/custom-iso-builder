@@ -6,7 +6,22 @@
 # Debian iso creation based on preseed-creator tool: https://framagit.org/fiat-tux/hat-softwares/preseed-creator/
 # Ubuntu autoinstall support based on ubuntu-autoinstall: https://github.com/LukeAngove/ubuntu-autoinstall/blob/main/gen_disk.sh
 
-SCRIPT_VERSION="0.3.3"
+# TODO: variable substitutions in preseed file (LATER USE)
+# export PRESEED_NETCFG_HOSTNAME PRESEED_NETCFG_DOMAIN
+# envsubst < ${install_config_template_path} > ${install_config_file_path}
+# Verify ISO checksum (LATER USE)
+# wget ${iso_checksum} -O SHA256SUMS
+# grep "${debian_iso_name}" SHA256SUMS | sha256sum -c -
+# todo: detect if isolinux exists for older versions
+# - Create remote directory on ssh host if it doesn't exist (LATER USE)
+# - Loading bar for ssh upload (LATER USE)
+# - Parallel ssh upload (LATER USE)
+# - Check if remote ISO file exists on ssh host
+# - Upload to temp directory on ssh host 
+# Verify checksum on remote host (LATER USE)
+
+
+SCRIPT_VERSION="0.3.4"
 
 #--- Logging functions ---
 log() {
@@ -81,29 +96,6 @@ log "INFO" "Loading Debian version configuration..."
 # Look for config file in configs/build/ directory
 build_dir="${dirpath}/${BUILD_DIR}"
 ## ADD .yml and .ks support ( .ks for later use )
-# config_files=("${build_dir}"/*.cfg)
-# config_files=("${build_dir}"/*.{cfg,yml,yaml,ks})
-
-# if [ ${#config_files[@]} -eq 0 ] || [ ! -f "${config_files[0]}" ]; then
-#     log_error "No config file found in ${build_dir}/"
-#     log_error "Copy a config file to configs/build/ to proceed"
-#     exit 1
-# elif [ ${#config_files[@]} -eq 1 ]; then
-#     config_file=$(basename "${config_files[0]}")
-#     log "INFO" "Found config in build/: ${config_file}"
-#     source "${build_dir}/${config_file}"
-#     if [ $? -ne 0 ]; then
-#         log_error "Failed to source config file: ${config_file}"
-#         exit 1
-#     fi
-# else
-#     log_error "Multiple config files found in ${build_dir}/"
-#     log_error "Only one config allowed in build/ directory"
-#     for cfg in "${config_files[@]}"; do
-#         log_error "  - $(basename "$cfg")"
-#     done
-#     exit 1
-# fi
 
 # Count matching files directly
 config_count=$(ls "${build_dir}"/*.{cfg,yml,yaml,ks} 2>/dev/null | wc -l)
@@ -139,8 +131,6 @@ if [ "$linux_os_type" = "debian" ]; then
     log "INFO" "Checking preseed file..."
     install_config_template="${preseed_file}"
     install_config_file="${preseed_file}"
-    # install_config_template_path="${dirpath}/${PRESEED_DIR}/${install_config_template}"
-    # install_config_file_path="${dirpath}/${PRESEED_DIR}/${install_config_file}"
 elif [ "$linux_os_type" = "ubuntu" ]; then
     log "INFO" "Checking autoinstall userdata files..."
     install_config_template="${user_data_file}"
@@ -148,7 +138,7 @@ elif [ "$linux_os_type" = "ubuntu" ]; then
     # install_config_template_path="${dirpath}/${PRESEED_DIR}/${install_config_template}"
     # install_config_file_path="${dirpath}/${PRESEED_DIR}/${install_config_file}"
     # seems meta-data is optional, with direct xorriso mapping
-    meta_data_path="${dirpath}/${PRESEED_DIR}/${meta_data_file}"
+    # meta_data_path="${dirpath}/${PRESEED_DIR}/${meta_data_file}"
 fi
 
 # Check config files existance
@@ -166,27 +156,6 @@ else
     # TO REMOVE LATER
     log_verbose "Config file path exists: ${install_config_file_path}"
 fi
-
-# # seems meta-data is optional, with direct xorriso mapping
-# if [ "$linux_os_type" = "ubuntu" ] && [ ! -f "${meta_data_path}" ]; then
-#     log "INFO" "Creating empty meta-data file..."
-#     touch "${meta_data_path}"
-# fi
-
-# if [[ ! -f "${install_config_template_path}" ]] && [[ ! -f "${install_config_file_path}" ]]; then
-#     log_error "Preseed file ${install_config_file_path} or template ${install_config_template_path} not found!"
-#     exit 1
-# elif [[ -f "${install_config_template_path}" ]] && [[ ! -f "${install_config_file_path}" ]]; then
-#     log "INFO" "No preseed file found, copying template to ${preseed_file}"
-#     cp "${install_config_template_path}" "${install_config_file_path}"
-#     log_verbose "Preseed file created from template"
-# else
-#     log_verbose "Preseed file exists: ${preseed_file}"
-# fi
-
-# TODO: variable substitutions in preseed file (LATER USE)
-# export PRESEED_NETCFG_HOSTNAME PRESEED_NETCFG_DOMAIN
-# envsubst < ${install_config_template_path} > ${install_config_file_path}
 
 #--- Dependency checking and installation ---
 check_and_install_dependencies() {
@@ -217,14 +186,6 @@ check_and_install_dependencies() {
     else
         log_verbose "✓ preseed-creator installed"
     fi
-
-    # # Check ubuntu-autoinstall-generator
-    # if ! command -v ubuntu-autoinstall-generator &> /dev/null; then
-    #     log "WARN" "ubuntu-autoinstall-generator not found"
-    #     deps_missing=true
-    # else
-    #     log_verbose "✓ ubuntu-autoinstall-generator installed"
-    # fi
 
     # Install if missing and AUTO_INSTALL_DEPS=true
     if [ "$deps_missing" = "true" ]; then
@@ -267,21 +228,6 @@ install_dependencies() {
             }
             log_verbose "✓ preseed-creator installed"
         fi
-    # elif [ "$linux_os_type" = "ubuntu" ]; then
-    #     # ubuntu-autoinstall-generator (for Ubuntu builds)
-    #     if ! command -v ubuntu-autoinstall-generator.sh &> /dev/null; then
-    #         log "INFO" "Installing ubuntu-autoinstall-generator..."
-    #         wget -q https://raw.githubusercontent.com/covertsh/ubuntu-autoinstall-generator/main/ubuntu-autoinstall-generator.sh || {
-    #             log_error "Failed to download preseed-creator"
-    #             exit 1
-    #         }
-    #         chmod +x ubuntu-autoinstall-generator.sh
-    #         mv ubuntu-autoinstall-generator.sh /usr/local/bin/ubuntu-autoinstall-generator || {
-    #             log_error "Failed to install ubuntu-autoinstall-generator"
-    #             exit 1
-    #         }
-    #         log_verbose "✓ ubuntu-autoinstall-generator installed"
-    #     fi
     fi
 
     log "INFO" "✓ Dependencies installed successfully"
@@ -318,10 +264,6 @@ else
     }
     log_success "Downloaded ${debian_iso_name}"
 fi
-
-# TODO: Verify ISO checksum (LATER USE)
-# wget ${iso_checksum} -O SHA256SUMS
-# grep "${debian_iso_name}" SHA256SUMS | sha256sum -c -
 
 #--- Create customized ISO ---
 log "INFO" "Creating customized ISO with preseed..."
@@ -392,14 +334,12 @@ elif [ "$linux_os_type" = "ubuntu" ]; then
 
     log "Adding autoinstall parameter to kernel command line..."
     # isolinux removed in Ubuntu 20.04+
-    # todo: detect if isolinux exists for older versions
     # sed -i -e 's/---/ autoinstall quiet ---/g' "${tmpdir}/isolinux/txt.cfg"
     sed -i -e 's/---/ autoinstall quiet ---/g' "${tmpdir}/boot/grub/grub.cfg"
     sed -i -e 's/---/ autoinstall quiet ---/g' "${tmpdir}/boot/grub/loopback.cfg"
     log "Changing timeout to kernel command lines."
     # set timeout to 5 seconds to skip grub menu
     sed -i -e 's/set timeout=30/set timeout=5/g' "${tmpdir}/boot/grub/grub.cfg"
-    # sed -i -e 's/set timeout=5/set timeout=1/g' "${tmpdir}/boot/grub/loopback.cfg"
 
     log "Added parameter to UEFI and BIOS kernel command lines."
 
@@ -500,7 +440,6 @@ validate_ssh_target() {
         log_error "  Check: 1) SSH config, 2) Network (Cloudflare WARP/Tailscale), 3) Target host"
         return 1
     fi
-
 }
 
 #--- Upload to remote host ---
@@ -516,13 +455,6 @@ if [ "$UPLOAD_CUSTOM_ISO" = "true" ]; then
 
     log "INFO" "Uploading to VMware ESXi host ${VMWARE_SSH_HOST_CONFIG}..."
     log_verbose "Upload path: ${VMWARE_ISO_UPLOAD_PATH}"
-
-    # TODO: 
-    # - Create remote directory if it doesn't exist (LATER USE)
-    # - Loading bar for upload (LATER USE)
-    # - Parallel upload (LATER USE)
-    # - Check if remote ISO file exists
-    # - Upload to temp directory 
 
     # Upload checksum file
     log "INFO" "Uploading checksum file..."

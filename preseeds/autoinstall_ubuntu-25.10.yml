@@ -2,6 +2,8 @@
 autoinstall:
   version: 1
   
+  # ======== autoinstall Config  - Version 0.1.0 ========
+
   # Basic localization
   locale: en_US.UTF-8
   keyboard:
@@ -22,16 +24,27 @@ autoinstall:
     layout:
       name: direct
   
-  # Minimal user for SSH access
-  identity:
-    hostname: localhost
-    username: setup_admin
-    password: "$6$ycf9sjoobhOfX78H$vk9BApLFjAKAoW3drZNQwXF0aQCZaXlphTgfiLLkjg0toKg2oYL7Tqr8k3RmYv5BFT.r7.8oPUpDy/u4VGY9U1"
-  
+  # # Set generic Hostname
+  # identity:
+  #   hostname: localhost
+  #   can't login anymore in ubuntu -> test with user-data below
+  #   username: setup_admin
+  #   password: "$6$ycf9sjoobhOfX78H$vk9BApLFjAKAoW3drZNQwXF0aQCZaXlphTgfiLLkjg0toKg2oYL7Tqr8k3RmYv5BFT.r7.8oPUpDy/u4VGY9U1"
+ 
+  # # Minimal user for SSH access
+  # user-data:
+  #    users:
+  #      - name: setup_admin
+  #        gecos: 'Setup Admin'
+  #        passwd: '$6$ycf9sjoobhOfX78H$vk9BApLFjAKAoW3drZNQwXF0aQCZaXlphTgfiLLkjg0toKg2oYL7Tqr8k3RmYv5BFT.r7.8oPUpDy/u4VGY9U1'
+  #        groups: adm, cdrom, dip, lxd, plugdev, sudo
+  #        shell: /bin/bash
+  #        lock_passwd: False
+
   # SSH server
   ssh:
     install-server: true
-    allow-pw: true
+    allow-pw: false
   
   # Minimal packages
   packages:
@@ -41,6 +54,9 @@ autoinstall:
     - sudo
     - sed
     - curl
+
+  # Updates from both the security and updates pockets are installed.
+  updates: all
 
   # Post-install: SSH + sudo only
   late-commands:
@@ -52,14 +68,12 @@ autoinstall:
     - echo "Cleaning cloud-init state for post-boot execution"
     - echo "Removing Subiquity blocking files -- begin"
     - echo "Resetting cloud-init for fresh guestinfo datasource detection"
-    # Remove subiquity files first
     - curtin in-target --target=/target -- rm -f /etc/cloud/cloud.cfg.d/00-subiquity-disable-cloudinit-networking.cfg
     - curtin in-target --target=/target -- rm -f /etc/cloud/cloud.cfg.d/99-installer.cfg
-    - curtin in-target --target=/target -- bash -c 'sed -i "s/^datasource_list:/#datasource_list:/g" /etc/cloud/cloud.cfg.d/90_dpkg.cfg'
     - |
-      curtin in-target --target=/target -- bash -c 'echo 'datasource_list: [ VMware, OVF, NoCloud, None ] >> /etc/cloud/cloud.cfg.d/90_dpkg.cfg'
+      curtin in-target --target=/target -- bash -c 'sed -i "s/^datasource_list:/#datasource_list:/g" /etc/cloud/cloud.cfg.d/90_dpkg.cfg'
     - |
-      curtin in-target --target=/target -- bash -c 'echo "datasource_list: [ VMware, OVF, NoCloud, None ]" >> /target/etc/cloud/cloud.cfg.d/99-datasource.cfg'
+      curtin in-target --target=/target -- bash -c 'echo "datasource_list: [ VMware, OVF, NoCloud, None ]" >> /etc/cloud/cloud.cfg.d/90_dpkg.cfg'
     - | 
       curtin in-target --target=/target -- bash -c 'echo "disable_vmware_customization: false" >> /etc/cloud/cloud.cfg'
     - curtin in-target --target=/target -- cloud-init clean --logs --machine-id
@@ -69,3 +83,6 @@ autoinstall:
   # Final message
   final-message: "The system is finally installed. Rebooting now..."
   reboot: true
+
+# Documentation:
+# https://canonical-subiquity.readthedocs-hosted.com/en/latest/reference/autoinstall-reference.html

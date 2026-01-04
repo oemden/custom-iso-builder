@@ -48,3 +48,24 @@ autoinstall:
     - chmod 440 /target/etc/sudoers.d/setup_admin
     - curtin in-target --target=/target -- systemctl enable ssh
     - curtin in-target --target=/target -- systemctl start ssh
+    - echo "deleting Subiquity files"
+    - echo "Cleaning cloud-init state for post-boot execution"
+    - echo "Removing Subiquity blocking files -- begin"
+    - echo "Resetting cloud-init for fresh guestinfo datasource detection"
+    # Remove subiquity files first
+    - curtin in-target --target=/target -- rm -f /etc/cloud/cloud.cfg.d/00-subiquity-disable-cloudinit-networking.cfg
+    - curtin in-target --target=/target -- rm -f /etc/cloud/cloud.cfg.d/99-installer.cfg
+    - curtin in-target --target=/target -- bash -c 'sed -i "s/^datasource_list:/#datasource_list:/g" /etc/cloud/cloud.cfg.d/90_dpkg.cfg'
+    - |
+      curtin in-target --target=/target -- bash -c 'echo 'datasource_list: [ VMware, OVF, NoCloud, None ] >> /etc/cloud/cloud.cfg.d/90_dpkg.cfg'
+    - |
+      curtin in-target --target=/target -- bash -c 'echo "datasource_list: [ VMware, OVF, NoCloud, None ]" >> /target/etc/cloud/cloud.cfg.d/99-datasource.cfg'
+    - | 
+      curtin in-target --target=/target -- bash -c 'echo "disable_vmware_customization: false" >> /etc/cloud/cloud.cfg'
+    - curtin in-target --target=/target -- cloud-init clean --logs --machine-id
+    - curtin in-target --target=/target -- truncate -s 0 /etc/machine-id
+    - echo "Removed Subiquity blocking files"
+
+  # Final message
+  final-message: "The system is finally installed. Rebooting now..."
+  reboot: true

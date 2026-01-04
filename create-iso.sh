@@ -6,7 +6,7 @@
 # Debian iso creation based on preseed-creator tool: https://framagit.org/fiat-tux/hat-softwares/preseed-creator/
 # Ubuntu autoinstall support based on ubuntu-autoinstall: https://github.com/LukeAngove/ubuntu-autoinstall/blob/main/gen_disk.sh
 
-SCRIPT_VERSION="0.3.2"
+SCRIPT_VERSION="0.3.3"
 
 #--- Logging functions ---
 log() {
@@ -340,11 +340,12 @@ if [[ -f "${custom_iso_path}" ]]; then
   fi
 fi
 
-log "INFO" "Running preseed-creator..."
+log "INFO" "Creating customized ISO..."
 log_verbose "Source: ${iso_path}"
 log_verbose "Output: ${custom_iso_path}"
 
 if [ "$linux_os_type" = "debian" ]; then
+    log "INFO" "Processing iso creation... for Debian" 
     log_verbose "Preseed: ${install_config_file_path}"
     /usr/local/bin/preseed-creator \
     -i "${iso_path}" \
@@ -359,6 +360,7 @@ if [ "$linux_os_type" = "debian" ]; then
     log_success "Custom ISO created: ${custom_iso_name}"
 
 elif [ "$linux_os_type" = "ubuntu" ]; then
+    log "INFO" "Processing iso creation for Ubuntu"
     log_verbose "autoinstall: ${user_data_path}"
     log_verbose "meta-data: ${meta_data_path}"
     # New autoinstall path
@@ -374,7 +376,7 @@ elif [ "$linux_os_type" = "ubuntu" ]; then
         log "Created temporary working directory ${tmpdir}"
     fi
 
-    # Copy source ISO contents to temporary directory
+    # Extract /boot/grub from source ISO contents to add autoinstall to grub config files
     log "INFO" "Extracting grub from ISO contents to temporary directory..."
     log "Extracting grub from ISO image..."
     
@@ -386,18 +388,14 @@ elif [ "$linux_os_type" = "ubuntu" ]; then
         log_error "Failed to extract ISO contents!"
         exit 1
     fi
-    # chmod -R u+w "${tmpdir}"
-    # rm -rf "${tmpdir}/"[BOOT]
     log "Extracted to ${tmpdir}"
 
     log "Adding autoinstall parameter to kernel command line..."
     # isolinux removed in Ubuntu 20.04+
     # todo: detect if isolinux exists for older versions
     # sed -i -e 's/---/ autoinstall quiet ---/g' "${tmpdir}/isolinux/txt.cfg"
-    # sed -i -e 's/---/ autoinstall quiet ---/g' "${tmpdir}/boot/grub/grub.cfg"
-    # sed -i -e 's/---/ autoinstall quiet ---/g' "${tmpdir}/boot/grub/loopback.cfg"
-    sed -i -e 's/---/ autoinstall ---/g' "${tmpdir}/boot/grub/grub.cfg"
-    sed -i -e 's/---/ autoinstall ---/g' "${tmpdir}/boot/grub/loopback.cfg"
+    sed -i -e 's/---/ autoinstall quiet ---/g' "${tmpdir}/boot/grub/grub.cfg"
+    sed -i -e 's/---/ autoinstall quiet ---/g' "${tmpdir}/boot/grub/loopback.cfg"
     log "Changing timeout to kernel command lines."
     # set timeout to 5 seconds to skip grub menu
     sed -i -e 's/set timeout=30/set timeout=5/g' "${tmpdir}/boot/grub/grub.cfg"
@@ -419,22 +417,6 @@ elif [ "$linux_os_type" = "ubuntu" ]; then
 
     log_success "Custom ISO created: ${custom_iso_name}"
 
-# elif [ "$linux_os_type" = "ubuntu" ]; then
-    #     log_verbose "autoinstall: ${user_data_path}"
-    #     log_verbose "meta-data: ${meta_data_path}"
-    #     # New autoinstall path
-        
-    #     /usr/local/bin/ubuntu-autoinstall-generator \
-    #     -a \
-    #     -s "${iso_path}" \
-    #     -d "${custom_iso_path}" \
-    #     -u "${install_config_file_path}" \
-    #     -m "${meta_data_path}" \
-    #     -k \
-    #     -v || {
-    #         log_error "Failed to create customized ISO!"
-    #         exit 1
-    #     }
 fi
 
 #--- Generate checksum ---
@@ -494,18 +476,8 @@ validate_ssh_target() {
     log_verbose "DEBUG: USER=$USER"
     log_verbose "DEBUG: whoami=$(whoami)"
     log_verbose "DEBUG: SSH config check:"
-    # ls -la ~/.ssh/ || echo "~/.ssh not found"
-    # ls -la $HOME/.ssh/ || echo "\$HOME/.ssh not found"
     #####################
 
-    # if ssh -o ConnectTimeout=5 -o BatchMode=yes "$VMWARE_SSH_HOST_CONFIG" "echo 'SSH OK'" &>/dev/null; then
-    #     log_success "✓ SSH target ${VMWARE_SSH_HOST_CONFIG} is reachable"
-    #     return 0
-    # else
-    #     log_error "✗ Cannot reach SSH target ${VMWARE_SSH_HOST_CONFIG}"
-    #     log_error "  Check: 1) SSH config, 2) Network (Cloudflare WARP/Tailscale), 3) Target host"
-    #     return 1
-    # fi
     log "INFO" "Validating SSH connectivity to ${VMWARE_SSH_HOST_CONFIG}..."
 
     # Debug output
@@ -545,8 +517,12 @@ if [ "$UPLOAD_CUSTOM_ISO" = "true" ]; then
     log "INFO" "Uploading to VMware ESXi host ${VMWARE_SSH_HOST_CONFIG}..."
     log_verbose "Upload path: ${VMWARE_ISO_UPLOAD_PATH}"
 
-    # TODO: Create remote directory if it doesn't exist (LATER USE)
-    # TODO: loading bar for upload (LATER USE)
+    # TODO: 
+    # - Create remote directory if it doesn't exist (LATER USE)
+    # - Loading bar for upload (LATER USE)
+    # - Parallel upload (LATER USE)
+    # - Check if remote ISO file exists
+    # - Upload to temp directory 
 
     # Upload checksum file
     log "INFO" "Uploading checksum file..."

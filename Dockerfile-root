@@ -3,7 +3,7 @@ FROM debian:bookworm-slim
 # Metadata
 LABEL maintainer="oem@mobiloem"
 LABEL description="Debian Custom ISO Builder with preseed-creator"
-LABEL version="0.2.0"
+LABEL version="0.3.4"
 
 # Avoid prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive

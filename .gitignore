@@ -6,8 +6,12 @@
 ISOs/*.iso
 ISOs/*.md5
 ISOs/*.old
+ISOs/*/*.iso
+ISOs/*/*.md5
+ISOs/*/*.old
 
-# Working directories
+
+# Working directories and files
 custom-iso-workdir/
 custom-iso-workdir/*
 work

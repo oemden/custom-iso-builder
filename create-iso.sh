@@ -144,6 +144,7 @@ fi
 # Check config files existance
 install_config_template_path="${dirpath}/${PRESEED_DIR}/${install_config_template}"
 install_config_file_path="${dirpath}/${PRESEED_DIR}/${install_config_file}"
+
 if [[ ! -f "${install_config_template_path}" ]] && [[ ! -f "${install_config_file_path}" ]]; then
     log_error "Config file ${install_config_file_path} or template ${install_config_template_path} not found!"
     exit 1

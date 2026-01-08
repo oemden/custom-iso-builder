@@ -1,24 +1,22 @@
 # Custom ISO Builder
 
-**Version:** 0.3.4
+**Version:** 0.3.5
 
 Automated Debian and Ubuntu custom ISO creation with preseed/autoinstall for unattended installations.
 Designed for VMware ESXi but compatible with any hypervisor or USB boot.
 
 # Features
 
-- ✅ **Automated dependency installation** (xorriso, isolinux, preseed-creator)
-- ✅ **Smart logging** with verbose mode
-- ✅ **SSH connectivity validation** before upload
-- ✅ **Configurable upload toggle** (local-only or remote)
-- ✅ **ISO source caching** and override options
-- ✅ **SHA256 checksum generation**
-- ✅ **Clean working directory management**
 - ✅ **Debian preseed files** support
 - ✅ **Ubuntu autoinstall files** support
 - ✅ **VMware ESXi integration** with SSH upload
 - ✅ **Docker support** for isolated builds
 - ✅ **Cloud-init compatibility** for post-installation configuration
+- ✅ **Automated dependency installation** (xorriso, isolinux, preseed-creator)
+- ✅ **Configurable upload toggle** (local-only or remote)
+- ✅ **ISO source caching** and override options
+- ✅ **SHA256 checksum generation**
+- ✅ **ISOs Subfolders** {Source,Custom}
 
 ### Generate User Passwords
 
@@ -44,7 +42,6 @@ ISO Uploads target vCenter hypervisor, so the .env reflects that.
 If you do not use vCenter, just set the c`onfigs/custom-iso-builder.cfg` parameter to `UPLOAD_CUSTOM_ISO=false`
 and find your way to upload your .iso image. 
 I may try to provide a more agnostic way to upload .iso on other targets, next in line would be Proxmox.
-
 
 | Variable | Description | Example |
 |----------|-------------|---------|
@@ -91,6 +88,27 @@ Create your Debian or Ubuntu config file in `configs/available/` following the t
 
 Place **one** config file in `configs/build/` to trigger the build.
 
+Debian and Ubuntu URLs have some nomenclature, so normally you can simply change the version and codename, and the script will automatically download the souce .iso if not present (considering ISO name and URLs path logic did not change).
+
+- Sources ISO are placed in `ISOs/Source`
+- Custom ISO will be saved in `ISOs/Custom`
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+|`linux_os_type`|Linux OS Type Family|"debian" - "ubuntu"|
+|`debian_version`|Os version|"13.0.0" - "25.10"|
+|`debian_codename`|Distro codename|"noble" - "bookworm"|
+|`debian_arch`|Distro architecture|"amd64"|
+|`debian_iso_name`|the iso name|"debian-13.1.0-amd64-DVD-1.iso" - ""|
+|`iso_url`|url to download the .iso|computed auto matically or just input the URLs|
+|`iso_checksum`|url to download the .iso checksum|computed auto matically or just input the URLs|
+|`config_file`|Name of config file|don't edit or input the name you choosed. The script will search in `configs/build` - only 1 file.|
+|`preseed_template`|template of preseed or autoinstall file|example of `config_file`|
+|`preseed_file`|preseed or autoinstall file|settings to apply to the .iso|
+|`custom_iso_version`|versioning of your custom .iso|"1.0.0"|
+|`custom_iso_comment`|commnent or "tag"|use whatever you see fit: "Test" "prod" "dev"|
+|`custom_iso_name`|the final name of the custom .iso|computed or just input what you want here for your custom .iso name|
+
 ### Debian Configuration Example (`debian-13.1.0.cfg`)
 
 ```bash
@@ -102,9 +120,8 @@ debian_version="13.1.0"
 debian_codename="trixie"
 debian_arch="amd64"
 debian_iso_name="debian-${debian_version}-${debian_arch}-DVD-1.iso"
-iso_url="https://cdimage.debian.org/cdimage/archive/${debian_version}/${debian_arch}/iso-dvd/debian-${debian_version}-${debian_arch}-DVD-1.iso"
+iso_url="https://cdimage.debian.org/cdimage/archive/${debian_version}/${debian_arch}/iso-dvd/${debian_iso_name}"
 iso_checksum="https://cdimage.debian.org/cdimage/archive/${debian_version}/${debian_arch}/iso-dvd/SHA512SUMS"
-iso_volume_name="debian-${debian_version}-${debian_arch}-netinst.iso"
 
 # File names (directories are hardcoded for Docker compatibility)
 config_file="debian-${debian_version}.cfg"
@@ -129,7 +146,6 @@ debian_codename="noble"
 debian_arch="amd64"
 debian_iso_name="ubuntu-${debian_version}-live-server-${debian_arch}.iso"
 iso_url="https://releases.ubuntu.com/${debian_version}/${debian_iso_name}"
-iso_volume_name="ubuntu-${debian_version}-${debian_arch}-netinst.iso"
 
 # File names (directories are hardcoded for Docker compatibility)
 config_file="ubuntu-${debian_version}.cfg"
@@ -282,7 +298,6 @@ I plan to work again on other ways, mainly to use this repo in my Gitlab. And ti
 
 ## TODOs
 
-- [ ] ISOs Subfolders {Source,Custom}
 - [ ] Verify remote checksum after upload
 - [ ] Variable substitution in preseed files
 - [ ] Multi-target support (Proxmox, AWS, etc.)
@@ -296,8 +311,6 @@ I plan to work again on other ways, mainly to use this repo in my Gitlab. And ti
 - [ ] Parallel ssh upload (LATER USE)
 - [ ] Check if remote ISO file exists on ssh host
 - [ ] Upload to temp directory on ssh host first
-
-
 
 ## Cloudflare Note
 

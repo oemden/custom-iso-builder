@@ -21,7 +21,7 @@
 # Verify checksum on remote host (LATER USE)
 
 
-SCRIPT_VERSION="0.3.4"
+SCRIPT_VERSION="0.3.5"
 
 #--- Logging functions ---
 log() {
@@ -69,6 +69,8 @@ BUILD_DIR="${CONFIG_DIR}/build"
 SCRIPT_OPTIONS="${CONFIG_DIR}/custom-iso-builder.cfg"
 PRESEED_DIR="preseeds"
 ISO_DIR="ISOs"
+ISO_SOURCE_DIR="${ISO_DIR}/Source"
+ISO_CUSTOM_DIR="${ISO_DIR}/Custom"
 WORKING_DIR="custom-iso-workdir"
 
 log "echo variables"
@@ -239,8 +241,8 @@ check_and_install_dependencies
 
 #--- Download Linux source ISO ---
 log "INFO" "Checking ${linux_os_type} source ISO..."
-mkdir -p "${dirpath}/${ISO_DIR}"
-iso_path="${dirpath}/${ISO_DIR}/${debian_iso_name}"
+mkdir -p "${dirpath}/${ISO_SOURCE_DIR}"
+iso_path="${dirpath}/${ISO_SOURCE_DIR}/${debian_iso_name}"
 
 if [ -f "${iso_path}" ]; then
     if [[ "${OVERRIDE_EXISTING_SOURCE_ISO}" = "true" ]]; then
@@ -272,7 +274,7 @@ working_dir_path="${dirpath}/${WORKING_DIR}"
 mkdir -p "${working_dir_path}"
 
 # Check if destination ISO exists
-custom_iso_path="${dirpath}/${ISO_DIR}/${custom_iso_name}"
+custom_iso_path="${dirpath}/${ISO_CUSTOM_DIR}/${custom_iso_name}"
 if [[ -f "${custom_iso_path}" ]]; then
   if [[ "${OVERRIDE_EXISTING_CUSTOM_ISO}" = "true" ]]; then
     log "INFO" "Custom ISO exists, backing up as ${custom_iso_name}.old"

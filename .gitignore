@@ -31,3 +31,7 @@ Thumbs.db
 *.tmp
 *.log
 *.bak
+
+# Private files
+**/private/**
+!**/private/.gitkeep

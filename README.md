@@ -5,7 +5,7 @@
 Automated Debian and Ubuntu custom ISO creation with preseed/autoinstall for unattended installations.
 Designed for VMware ESXi but compatible with any hypervisor or USB boot.
 
-# Features
+## Features
 
 - ✅ **Debian preseed files** support
 - ✅ **Ubuntu autoinstall files** support
@@ -24,9 +24,9 @@ Designed for VMware ESXi but compatible with any hypervisor or USB boot.
 openssl passwd -6 -salt "$(openssl rand -hex 8)" secret
 ```
 
-# Quick Start
+## Quick Start
 
-## 1. Configure Environment
+### 1. Configure Environment
 
 Copy and edit the environment template:
 
@@ -36,15 +36,15 @@ cp .env.example .env
 
 Edit `.env` with your ESXi host and SSH credentials.
 
-### `.env` Configuration Variables
+#### `.env` Configuration Variables
 
 ISO Uploads target vCenter hypervisor, so the .env reflects that.
-If you do not use vCenter, just set the c`onfigs/custom-iso-builder.cfg` parameter to `UPLOAD_CUSTOM_ISO=false`
-and find your way to upload your .iso image. 
+If you do not use vCenter, just set the `configs/custom-iso-builder.cfg` parameter to `UPLOAD_CUSTOM_ISO=false`
+and find your way to upload your .iso image.
 I may try to provide a more agnostic way to upload .iso on other targets, next in line would be Proxmox.
 
 | Variable | Description | Example |
-|----------|-------------|---------|
+| --- | --- | --- |
 | `VMWARE_SSH_HOST_CONFIG` | SSH host from `~/.ssh/config` | `my_esxi_host.mydomain.tld` |
 | `VMWARE_DATASTORE` | ESXi datastore name | `datastore1` |
 | `VMWARE_ISO_DIRPATH` (*) | Directory path in datastore to store your ISOs | `ISO/LINUX` |
@@ -61,7 +61,7 @@ Edit `configs/custom-iso-builder.cfg`:
 ### `custom-iso-builder.cfg` Configuration Variables
 
 | Variable | Description | Default |
-|----------|-------------|---------|
+| ---------- | ------------- | --------- |
 | `AUTO_INSTALL_DEPS` | Auto-install missing dependencies | `true` |
 | `OVERRIDE_EXISTING_SOURCE_ISO` | Re-download source ISO if exists | `false` |
 | `OVERRIDE_EXISTING_CUSTOM_ISO` | Overwrite existing custom ISO | `true` |
@@ -80,7 +80,6 @@ This is by design as I want to use git commits to trigger the builds.
   It is not really planned as it adds loops etc and would be more painfull to debug if one of the images where to be failing.
   For now, I prefer a commit per new .iso I want to create.
 
-
 Create your Debian or Ubuntu config file in `configs/available/` following the templates:
 
 - `configs/templates/debian-13.1.0-example.cfg`
@@ -93,7 +92,7 @@ Debian and Ubuntu URLs have some nomenclature, so normally you can simply change
 - Sources ISO are placed in `ISOs/Source`
 - Custom ISO will be saved in `ISOs/Custom`
 
-| Variable | Description | Example |
+|Variable|Description|Example|
 |----------|-------------|---------|
 |`linux_os_type`|Linux OS Type Family|"debian" - "ubuntu"|
 |`debian_version`|Os version|"13.0.0" - "25.10"|
@@ -161,12 +160,11 @@ custom_iso_comment="custom"
 custom_iso_name="ubuntu-${debian_version}-${debian_arch}-${custom_iso_comment}-${custom_iso_version}.iso"
 ```
 
-# 4. Preseed / Autoinstall Files
+## 4. Preseed / Autoinstall Files
 
-Here It is mostly on you, but the templates may help you if you start from zero. 
+Here It is mostly on you, but the templates may help you if you start from zero.
 Many things are missing and for Example I do not deal (yet ) with LUKS or custom disc formating etc... for now it is basic standard disk formating.
 Basically any preseed or autoinstal file that worked for you should work with the script.
-
 
 Preseed files (Debian) and autoinstall files (Ubuntu) are stored in `preseeds/`.
 
@@ -174,6 +172,16 @@ Preseed files (Debian) and autoinstall files (Ubuntu) are stored in `preseeds/`.
 - **Ubuntu**: Use `autoinstall_ubuntu-<version>.yml`
 
 Examples are provided in the `preseeds/` directory.
+
+### encrypted user passwords
+
+To generate an encrypted password use the command:
+
+```bash
+openssl passwd -6 -salt 'MyPreciousSalt' "my_password"
+# if you have special characters, use single quotes
+openssl passwd -6 -salt 'B07D1A40EF8E4359A20DF2EB6D5D21A5' 'top_$ecret!'
+```
 
 ### Relations between Debian/Ubuntu Config files and Debien Preseed / Ubuntu autoinstall files
 
@@ -185,18 +193,19 @@ You have to point your preseed / autoinstall files inside the config files.
 Naming is based on Debian and ubuntu ISO names or URLs. You can find example in templates.
 Nothing blocks you to completely change the way I labeled custom .iso, or how I set the download URLS.
 I just find it simpler to:
+
 - just give the actual Debain or Ubuntu versions eg: 12.9.0, 13.1.0, 25.10
 - set a Version Number for my  custom iso
 - set a "comment" eg: CloudinitTest, CLoudInitReady, Dev
 
-For ex: 
+For ex:
 
 - `debian-13.1.0-amd64-CloudInitTest-1.1.1-a.iso`
 - `ubuntu-25.10-live-server-amd64-vmware_tests-0.1.1.iso`
 
-# 5. Usage
+## 5. Usage
 
-## Run the Script locally
+### Run the Script locally
 
 The script can be runned locally but the main goal is to use docker container. It aloows me to create all my Debian / Ubuntu custom .ISO right on my MacbookPro.
 
@@ -208,12 +217,10 @@ sudo ./create-iso.sh
 
 The custom ISO will be created in the `ISOs/` directory and automatically uploaded to ESXi if you set `UPLOAD_CUSTOM_ISO=true`.
 
-## Use Docker
+### Use Docker
 
 The default behavior is to terminate the container after build ( either success or failure).
-If you encounters issues, you may want to check things in the container. 
-
-
+If you encounters issues, you may want to check things in the container.
 
 ### Build the Docker Image
 
@@ -236,19 +243,20 @@ docker-compose up -d
 ```
 
 ### Debugging
+
 If you want to perform tests (eg: check ssh config or run the script manually inside the container).
 There is an option to keep the container running after the build and do some debug if needed.
 Edit `.env` and set `ISO_BUILDER_KEEP_ALIVE=true` to keep the ISO builder container alive after the iso build,
 otherwise set it to `false`
 
 1. Edit `.env` and set:
- 
+
    ```bash
    ISO_BUILDER_KEEP_ALIVE=true
    ```
 
 2. Run the container:
- 
+
    ```bash
    docker-compose up
    ```
@@ -269,7 +277,7 @@ docker logs -f iso-builder
 
 ### Directory Structure
 
-```
+```bash
 configs/        # Debian/Ubuntu version configs
 ├── available/  # Available configurations
 ├── build/      # Active configuration (one file only)
@@ -296,6 +304,10 @@ I plan to work again on other ways, mainly to use this repo in my Gitlab. And ti
 - sudo access
 - SSH key authentication for ESXi upload
 
+## Burn the .iso to USB Key
+
+Follow this procedure: [https://documentation.ubuntu.com/desktop/en/latest/how-to/create-a-bootable-usb-stick/](https://documentation.ubuntu.com/desktop/en/latest/how-to/create-a-bootable-usb-stick/)
+
 ## TODOs
 
 - [ ] Verify remote checksum after upload
@@ -311,6 +323,8 @@ I plan to work again on other ways, mainly to use this repo in my Gitlab. And ti
 - [ ] Parallel ssh upload (LATER USE)
 - [ ] Check if remote ISO file exists on ssh host
 - [ ] Upload to temp directory on ssh host first
+- [ ] Use subiquity Check autoinstall from ubuntu github repo ( new script / docker file ?) to validate autoinstall
+- [ ] Use Ubuntu based image vs Debian based image in Dockerfile ?
 
 ## Cloudflare Note
 

@@ -23,22 +23,59 @@ Designed for VMware ESXi but compatible with any hypervisor or USB boot.
 
 Follow these steps **in order**. Each step points to the detailed section below.
 
-| # | Step | Files / Directory | Details |
-| --- | --- | --- | --- |
-| 1 | Discover & download a new source ISO (optional — `create-iso.sh` also auto-downloads missing ISOs at build time) | `scripts/iso-catalog.sh` → `ISOs/Source/` + a scaffold in `configs/templates/` | [Section 0: Catalog Script](#0-catalog-script-iso-catalogsh) |
-| 2 | **One-time** — configure your environment | `.env` | [Section 1: Environment (.env)](#1-environment-env) |
-| 3 | **One-time** — set builder options | `configs/custom-iso-builder.cfg` | [Section 2: Builder Options](#2-builder-options-custom-iso-buildercfg) |
-| 4 | Prepare your preseed / autoinstall file | `preseeds/` or `preseeds/private/` | [Section 4: Preseed / Autoinstall Files](#4-preseed--autoinstall-files) |
-| 5 | Create your OS config and point it to the preseed file | `configs/available/` (start), see templates in `configs/templates/` | [Section 3: OS Configuration](#3-os-configuration) |
-| 6 | **Activate the build** — copy exactly ONE config into | `configs/build/` | [Section 3: OS Configuration](#3-os-configuration) |
-| 7 | Build the ISO | `docker-compose up` (preferred) or `sudo ./create-iso.sh` | [Section 5: Usage](#5-usage) |
-| 8 | Check the result | `ISOs/Custom/` (+ upload if enabled) | [Section 5: Usage](#5-usage) |
+
+| #   | Step                                                                                                                 | Files / Directory                                                              | Details                                                                 |
+| --- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| 1   | Discover &amp; download a new source ISO (optional — `create-iso.sh` also auto-downloads missing ISOs at build time) | `scripts/iso-catalog.sh` → `ISOs/Source/` + a scaffold in `configs/templates/` | [Section 0: Catalog Script](#0-catalog-script-iso-catalogsh)            |
+| 2   | **One-time** — configure your environment                                                                            | `.env`                                                                         | [Section 1: Environment (.env)](#1-environment-env)                     |
+| 3   | **One-time** — set builder options                                                                                   | `configs/custom-iso-builder.cfg`                                               | [Section 2: Builder Options](#2-builder-options-custom-iso-buildercfg)  |
+| 4   | Prepare your preseed / autoinstall file                                                                              | `preseeds/` or `preseeds/private/`                                             | [Section 4: Preseed / Autoinstall Files](#4-preseed--autoinstall-files) |
+| 5   | Create your OS config and point it to the preseed file                                                               | `configs/available/` (start), see templates in `configs/templates/`            | [Section 3: OS Configuration](#3-os-configuration)                      |
+| 6   | **Activate the build** — copy exactly ONE config into                                                                | `configs/build/`                                                               | [Section 3: OS Configuration](#3-os-configuration)                      |
+| 7   | Build the ISO                                                                                                        | `docker-compose up` (preferred) or `sudo ./create-iso.sh`                      | [Section 5: Usage](#5-usage)                                            |
+| 8   | Check the result                                                                                                     | `ISOs/Custom/` (+ upload if enabled)                                           | [Section 5: Usage](#5-usage)                                            |
+
 
 In short:
 
 - **Preseed / autoinstall files** define what gets installed **inside** the target machine (users, packages, disk layout...).
 - **OS config files** (`configs/`) declare *which* source ISO to download, the preseed file to bake in, and the custom ISO name.
 - **`configs/build/`** is the trigger: one config file there = one build. I want to use git commits to trigger builds, so: one commit per new ISO.
+
+### Workflow Diagram
+
+```mermaid
+flowchart TD
+    CAT["configs/catalog/catalog.yml<br/>committed list + URL/ISO-name matrix"]
+    IC["scripts/iso-catalog.sh<br/>(optional — Section 0)"]
+    SRC[("ISOs/Source")]
+    TPL["configs/templates/<br/>example cfgs + scaffolds"]
+    AVAIL["configs/available/<br/>hand-curated cfg library"]
+    BUILD["configs/build/<br/>exactly ONE cfg = the trigger"]
+    PRE["preseeds/<br/>(root · private/ · templates/)"]
+    OPTS["configs/custom-iso-builder.cfg<br/>global options"]
+    ENV[".env<br/>ESXi/SSH, keep-alive"]
+    DOCKER["docker-compose (container)<br/>or sudo ./create-iso.sh"]
+    BUILDER["create-iso.sh"]
+    CUSTOM[("ISOs/Custom<br/>+ .md5 checksum")]
+    ESXI["ESXi / vCenter datastore<br/>(optional)"]
+
+    CAT <-.->|"-u refresh, then commit"| IC
+    IC -->|"list / download<br/>(checksum-verified)"| SRC
+    IC -->|"scaffold: replace or keep"| TPL
+    TPL -->|"review, adjust preseed refs"| AVAIL
+    AVAIL -->|"copy ONE file"| BUILD
+    BUILD -->|"sourced"| BUILDER
+    OPTS -->|"sourced"| BUILDER
+    PRE -->|"preseed_file (debian)<br/>user_data_file (ubuntu)"| BUILDER
+    SRC -->|"missing? auto-download"| BUILDER
+    DOCKER -->|"runs"| BUILDER
+    BUILDER -->|"preseed-creator / xorriso<br/>bake into ISO"| CUSTOM
+    BUILDER -->|"UPLOAD_CUSTOM_ISO=true"| ESXI
+    ENV -.->|"SSH target"| ESXI
+```
+
+Solid = file flow, dotted = configuration. `iso-catalog.sh` and `create-iso.sh`<br/>only meet through `ISOs/Source` and `configs/templates/` — the catalog never touches `build/`.
 
 ---
 
@@ -62,13 +99,18 @@ What a download does:
 - verifies the checksum (SHA256 Ubuntu / SHA512 Debian) before accepting the file
 - skips the download if the ISO is already there (`-o` to force, e.g. corrupted ISO)
 - scaffolds a config in `configs/templates/` (never `available/`, never `build/`) —
-  if a template already exists it is compared and you choose: replace or keep
+if a template already exists it is compared and you choose: replace or keep
 
 Flavors: Ubuntu `live-server` / `desktop`; Debian `netinst` (small, needs internet at
 install time) / `dvd` (~4 GB, **full offline install**). Distro specifics live in
 `scripts/scaffolds/` (see `scripts/README.md`).
 
 ## 1. Environment (`.env`)
+
+Mostly used for the Hypervisor Target. 
+
+- Currently support only VMWare ESXI
+- Proxmox is planned whenever I'll work on Proxmox again.
 
 Copy and edit the environment template:
 
@@ -83,15 +125,17 @@ If you do not use vCenter, just set `configs/custom-iso-builder.cfg` → `UPLOAD
 and find your way to upload your `.iso` image.
 I may try to provide a more agnostic way to upload `.iso` on other targets, next in line would be Proxmox.
 
-| Variable | Description | Example |
-| --- | --- | --- |
-| `VMWARE_SSH_HOST_CONFIG` | SSH host from `~/.ssh/config` | `my_esxi_host.mydomain.tld` |
-| `VMWARE_DATASTORE` | ESXi datastore name | `datastore1` |
-| `VMWARE_ISO_DIRPATH` (*) | Directory path in datastore to store your ISOs | `ISO/LINUX` |
-| `VMWARE_VOLUMES_PATH` (*) | Auto-constructed volumes path | `/vmfs/volumes` |
-| `VMWARE_DATASTORE_PATH` (*) | Auto-constructed datastore path | `${VMWARE_VOLUMES_PATH}/${VMWARE_DATASTORE}` → `/vmfs/volumes/datastore1` |
-| `VMWARE_ISO_UPLOAD_PATH` (*) | Auto-constructed upload path | `${VMWARE_DATASTORE_PATH}/${VMWARE_ISO_DIRPATH}` → `/vmfs/volumes/datastore1/ISO/LINUX` |
-| `ISO_BUILDER_KEEP_ALIVE` | Keep the Docker container alive after build (debugging) | `false` |
+
+| Variable                      | Description                                             | Example                                                                                 |
+| ----------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `VMWARE_SSH_HOST_CONFIG`      | SSH host from `~/.ssh/config`                           | `my_esxi_host.mydomain.tld`                                                             |
+| `VMWARE_DATASTORE`            | ESXi datastore name                                     | `datastore1`                                                                            |
+| `VMWARE_ISO_DIRPATH` (\*)     | Directory path in datastore to store your ISOs          | `ISO/LINUX`                                                                             |
+| `VMWARE_VOLUMES_PATH` (\*)    | Auto-constructed volumes path                           | `/vmfs/volumes`                                                                         |
+| `VMWARE_DATASTORE_PATH` (\*)  | Auto-constructed datastore path                         | `${VMWARE_VOLUMES_PATH}/${VMWARE_DATASTORE}` → `/vmfs/volumes/datastore1`               |
+| `VMWARE_ISO_UPLOAD_PATH` (\*) | Auto-constructed upload path                            | `${VMWARE_DATASTORE_PATH}/${VMWARE_ISO_DIRPATH}` → `/vmfs/volumes/datastore1/ISO/LINUX` |
+| `ISO_BUILDER_KEEP_ALIVE`      | Keep the Docker container alive after build (debugging) | `false`                                                                                 |
+
 
 (*): Your custom `.iso` will be uploaded to: `/vmfs/volumes/<VMWARE_DATASTORE>/<VMWARE_ISO_DIRPATH>/`
 
@@ -99,63 +143,69 @@ I may try to provide a more agnostic way to upload `.iso` on other targets, next
 
 Edit `configs/custom-iso-builder.cfg`:
 
-| Variable | Description | Default |
-| --- | --- | --- |
-| `AUTO_INSTALL_DEPS` | Auto-install missing dependencies | `true` |
-| `OVERRIDE_EXISTING_SOURCE_ISO` | Re-download source ISO if it exists | `false` |
-| `OVERRIDE_EXISTING_CUSTOM_ISO` | Overwrite existing custom ISO | `true` |
-| `UPLOAD_CUSTOM_ISO` | Upload to remote host | `true` |
-| `VALIDATE_SSH_TARGET` | Validate SSH before upload | `true` |
-| `KEEP_WORKING_DIRECTORY` | Keep working directory for debugging | `false` |
-| `VERBOSE_MODE` | Enable debug logging | `true` |
+
+| Variable                       | Description                          | Default |
+| ------------------------------ | ------------------------------------ | ------- |
+| `AUTO_INSTALL_DEPS`            | Auto-install missing dependencies    | `true`  |
+| `OVERRIDE_EXISTING_SOURCE_ISO` | Re-download source ISO if it exists  | `false` |
+| `OVERRIDE_EXISTING_CUSTOM_ISO` | Overwrite existing custom ISO        | `true`  |
+| `UPLOAD_CUSTOM_ISO`            | Upload to remote host                | `true`  |
+| `VALIDATE_SSH_TARGET`          | Validate SSH before upload           | `true`  |
+| `KEEP_WORKING_DIRECTORY`       | Keep working directory for debugging | `false` |
+| `VERBOSE_MODE`                 | Enable debug logging                 | `true`  |
+
 
 ## 3. OS Configuration
 
 The custom-iso script looks into `configs/build/` and throws an error if more than one file is present.
-This is by design as I want to use git commits to trigger the builds.
+**This is by design as I want to use git commits to trigger the builds.**
 
 - I may eventually add batch creation of multiple `.iso` if it proves useful.
-  It is not really planned as it adds loops etc. and would be more painful to debug if one of the images were to fail.
-  For now, I prefer a commit per new `.iso` I want to create.
+It is not really planned as it adds loops etc. and would be more painful to debug if one of the images were to fail.
+For now, I prefer a commit per new `.iso` I want to create.
 
 ### How to create a config
 
 1. Start from `configs/templates/debian-13.1.0-example.cfg` or `configs/templates/ubuntu-25.10-example.cfg`, or copy an existing one from `configs/available/`.
 2. Save it in `configs/available/` (your library of ready configs).
-3. When you want to build, copy **exactly one** file into `configs/build/`.
+3. When you want to build, copy/move **exactly one** file into `configs/build/`.
 
-Debian and Ubuntu URLs have some nomenclature, so normally you can simply change the version and codename,
+**Debian** and **Ubuntu** URLs have some nomenclature, so normally you can simply change the version and codename,
 and the script will automatically download the source `.iso` if not present (considering ISO name and URLs path logic did not change).
 
 - Source ISOs are placed in `ISOs/Source`
 - Custom ISO will be saved in `ISOs/Custom`
 
+There is small Helper Script to download Source ISOs refer to above Section: **0. Catalog Script (iso-catalog.sh)`**
+
 ### OS config variables
 
-| Variable | Description | Example |
-| --- | --- | --- |
-| `linux_os_type` | Linux OS type family — drives which branch the script runs | `"debian"` / `"ubuntu"` |
-| `debian_version` | OS version | `"13.1.0"` / `"25.10"` |
-| `debian_codename` | Distro codename (informational — not consumed by the script) | `"questing"` (25.10) / `"trixie"` (13) |
-| `debian_arch` | Distro architecture | `"amd64"` |
-| `type` | Ubuntu flavour used in ISO name | `"live-server"` / `"desktop"` |
-| `debian_iso_name` | The ISO name | `"ubuntu-25.10-live-server-amd64.iso"` |
-| `iso_url` | URL to download the `.iso` | computed automatically, or input the URL |
-| `iso_checksum` | URL to download the `.iso` checksum | computed automatically, or input the URL (not yet verified — see TODOs) |
-| `iso_volume_name` | ISO volume name (informational — not consumed by the script) | `"ubuntu-server 25.10 amd64"` |
-| `config_file` | Name of config file | Don't edit — the script finds the single file in `configs/build/` |
-| `preseed_file` | **Debian builds**: preseed file to bake in (looked up in `preseeds/`) | `"preseed_debian-13.1.0.cfg"` |
-| `user_data_file` | **Ubuntu builds**: autoinstall file to bake in (looked up in `preseeds/`) | `"autoinstall_ubuntu-25.10-live-server.yml"` |
-| `custom_iso_version` | Versioning of your custom `.iso` | `"1.0.0"` |
-| `custom_iso_comment` | Comment or "tag" | `"Test"` / `"prod"` / `"dev"` |
-| `custom_iso_name` | Final name of the custom `.iso` | computed, or set what you want |
+
+| Variable             | Description                                                                 | Example                                                                 |
+| -------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `linux_os_type`      | Linux OS type family — drives which branch the script runs                  | `"debian"` / `"ubuntu"`                                                 |
+| `debian_version`     | OS version                                                                  | `"13.1.0"` / `"25.10"`                                                  |
+| `debian_codename`    | Distro codename (informational — not consumed by the script)                | `"questing"` (25.10) / `"trixie"` (13)                                  |
+| `debian_arch`        | Distro architecture                                                         | `"amd64"`                                                               |
+| `type`               | Ubuntu flavour used in ISO name                                             | `"live-server"` / `"desktop"`                                           |
+| `debian_iso_name`    | The ISO name                                                                | `"ubuntu-25.10-live-server-amd64.iso"`                                  |
+| `iso_url`            | URL to download the `.iso`                                                  | computed automatically, or input the URL                                |
+| `iso_checksum`       | URL to download the `.iso` checksum                                         | computed automatically, or input the URL (not yet verified — see TODOs) |
+| `iso_volume_name`    | ISO volume name (informational — not consumed by the script)                | `"ubuntu-server 25.10 amd64"`                                           |
+| `config_file`        | Name of config file                                                         | Don't edit — the script finds the single file in `configs/build/`       |
+| `preseed_file`       | **Debian builds**: *preseed* file to bake in (looked up in `preseeds/`)     | `"preseed_debian-13.1.0.cfg"`                                           |
+| `user_data_file`     | **Ubuntu builds**: *autoinstall* file to bake in (looked up in `preseeds/`) | `"autoinstall_ubuntu-25.10-live-server.yml"`                            |
+| `custom_iso_version` | Versioning of your custom `.iso`                                            | `"1.0.0"`                                                               |
+| `custom_iso_comment` | Comment or "tag"                                                            | `"Test"` / `"prod"` / `"dev"` / `"lab"` / `"whatever-tag-you-see-fit"`  |
+| `custom_iso_name`    | Final name of the custom `.iso`                                             | computed, or set what you want                                          |
+
 
 > **Note — which preseed variable matters:**
 > The script uses `preseed_file` for Debian builds and `user_data_file` for Ubuntu builds.
 > The `preseed_template` / `user_data_template` variables are currently **not consumed** by the script
 > (the copy-from-template logic is inert — see TODOs). Set them if you like, but the file itself must exist.
 
-> **Note — file lookup path:** the script resolves the install file as `preseeds/<value>`.
+> **Note — file lookup path:** the script resolves the install file as `preseeds/[[ORCA_RICH_MD:39a3690ac38f973bc8bfcfe42e9e6458:inline-html:%3Cvalue%3E]]`.
 > This means the value may include a subpath — this is how you use the private vault:
 > `user_data_file="private/autoinstall_ubuntu-25.10-desktop.yml"` (see [Section 4](#4-preseed--autoinstall-files)).
 
@@ -229,16 +279,18 @@ Basically any preseed or autoinstall file that worked for you should work with t
 
 Preseed files (Debian, `.cfg`) and autoinstall files (Ubuntu, `.yml`) live in `preseeds/`, in three places:
 
-| Location | Purpose | Git |
-| --- | --- | --- |
-| `preseeds/` (root) | Shareable, sanitized files | **tracked** |
-| `preseeds/private/` | Personal vault: real hostnames, usernames, password hashes | **ignored** (`**/private/**`, only `.gitkeep` tracked) |
-| `preseeds/templates/` | Tracked starting-point templates | **tracked** |
+
+| Location              | Purpose                                                    | Git                                                    |
+| --------------------- | ---------------------------------------------------------- | ------------------------------------------------------ |
+| `preseeds/` (root)    | Shareable, sanitized files                                 | **tracked**                                            |
+| `preseeds/private/`   | Personal vault: real hostnames, usernames, password hashes | **ignored** (`**/private/**`, only `.gitkeep` tracked) |
+| `preseeds/templates/` | Tracked starting-point templates                           | **tracked**                                            |
+
 
 ### Naming conventions
 
-- **Debian**: `preseed_debian-<version>.cfg`
-- **Ubuntu**: `autoinstall_ubuntu-<version>[-<type>].yml` (e.g. `autoinstall_ubuntu-25.10-live-server.yml`)
+- **Debian**: `preseed_debian-[[ORCA_RICH_MD:39a3690ac38f973bc8bfcfe42e9e6458:inline-html:%3Cversion%3E]].cfg`
+- **Ubuntu**: `autoinstall_ubuntu-[[ORCA_RICH_MD:39a3690ac38f973bc8bfcfe42e9e6458:inline-html:%3Cversion%3E]][-[[ORCA_RICH_MD:39a3690ac38f973bc8bfcfe42e9e6458:inline-html:%3Ctype%3E]]].yml` (e.g. `autoinstall_ubuntu-25.10-live-server.yml`)
 - Templates use a `-template` suffix: `autoinstall_ubuntu-25.10-desktop-template.yml`, `preseed_debian-13.1.0-template.cfg`
 
 ### Using a private autoinstall file
@@ -251,7 +303,7 @@ user_data_file="private/autoinstall_ubuntu-25.10-desktop.yml"   # Ubuntu
 preseed_file="private/preseed_debian-13.1.0-myserver.cfg"       # Debian
 ```
 
-The script resolves `preseeds/<value>`, so the prefix simply routes into the vault.
+The script resolves `preseeds/[[ORCA_RICH_MD:39a3690ac38f973bc8bfcfe42e9e6458:inline-html:%3Cvalue%3E]]`, so the prefix simply routes into the vault.
 The whole `preseeds/` tree (including `private/`) is mounted read-only in the Docker container,
 so this works identically locally and in Docker.
 
@@ -290,7 +342,7 @@ For example:
 
 ## 5. Usage
 
-### Discover & Download New Source ISOs (catalog)
+### Discover &amp; Download New Source ISOs (catalog)
 
 See [Section 0: Catalog Script](#0-catalog-script-iso-catalogsh) — the catalog
 cache (`configs/catalog/catalog.yml`) and the URL/ISO-name nomenclature matrix
@@ -346,9 +398,9 @@ docker logs -f iso-builder
 
 ### Verify the result
 
-- Custom ISO + checksum: `ISOs/Custom/<custom_iso_name>` and `<custom_iso_name>.md5`
-  (the checksum is a SHA256 saved in a `.md5`-named file — see TODOs)
-- If `UPLOAD_CUSTOM_ISO=true`: ISO lands in `/vmfs/volumes/<VMWARE_DATASTORE>/<VMWARE_ISO_DIRPATH>/` on the ESXi host
+- Custom ISO + checksum: `ISOs/Custom/[[ORCA_RICH_MD:39a3690ac38f973bc8bfcfe42e9e6458:inline-html:%3Ccustom_iso_name%3E]]` and `[[ORCA_RICH_MD:39a3690ac38f973bc8bfcfe42e9e6458:inline-html:%3Ccustom_iso_name%3E]].md5`
+(the checksum is a SHA256 saved in a `.md5`-named file — see TODOs)
+- If `UPLOAD_CUSTOM_ISO=true`: ISO lands in `/vmfs/volumes/[[ORCA_RICH_MD:39a3690ac38f973bc8bfcfe42e9e6458:inline-html:%3CVMWARE_DATASTORE%3E]]/[[ORCA_RICH_MD:39a3690ac38f973bc8bfcfe42e9e6458:inline-html:%3CVMWARE_ISO_DIRPATH%3E]]/` on the ESXi host
 
 ## Configuration Details
 
@@ -383,12 +435,13 @@ Each directory also has its own `README.md` with a one-line summary of its files
 
 The script relies on `~/.ssh/config` for SSH authentication. Ensure your SSH key is properly configured.
 I found it easier to manage credentials when I use it locally.
-I plan to work on other ways, mainly to use this repo in my GitLab, and trigger builds when I commit
-a new Debian config / preseed or Ubuntu config / autoinstall.
+
+
+plan to work on other ways, mainly to use this repo in CI/CD, and trigger builds when I commit a new Debian config / preseed or Ubuntu config / autoinstall.
 
 ### Network Requirements
 
-- **Local use**: Cloudflare WARP or Tailscale recommended
+- **Local use**: Cloudflare WARP or Tailscale recommended to access the Hypervisor.
 - **SSH target**: Must be reachable when `UPLOAD_CUSTOM_ISO=true`
 
 ## Requirements
@@ -407,8 +460,8 @@ All TODOs are tracked in [TODOs.md](TODOs.md).
 
 ## Cloudflare Note
 
-To download `preseed-creator` with `wget` or `curl`, add **framagit.org** to a **"Do Not Inspect"** Cloudflare Gateway HTTP policy.
+To download `preseed-creator` executable with `wget` or `curl`, add **framagit.org** to a **"Do Not Inspect"** Cloudflare Gateway HTTP policy.
 
 ## Main Contributor
 
-oem <oem@mobiloem>
+oem &lt;oem@mobiloem&gt;

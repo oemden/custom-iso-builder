@@ -17,20 +17,20 @@
 # Usage:
 #   scripts/iso-catalog.sh <debian|ubuntu> [options]
 #
-#   --update-cache    regenerate the catalog cache (both distros), then continue
-#   --override        re-download even if the ISO already exists in ISOs/Source
-#                     (default comes from OVERRIDE_EXISTING_SOURCE_ISO in
-#                     configs/custom-iso-builder.cfg)
-#   --version <v>     preselect version (skips prompt)
-#   --flavor <f>      preselect flavor: live-server|desktop (ubuntu),
-#                     netinst|dvd (debian)
-#   --arch <a>        preselect arch (default: amd64)
-#   --list            print the catalog for the distro and exit
-#   --check-configs   validate iso_url / iso_checksum / iso names of every cfg
-#                     in configs/available/ and configs/build/ (live checks)
-#   --no-interactive  fail instead of prompting (requires --version and --flavor)
-#   --dry-run         show what would be done: no download, no scaffold written
-#   -h | --help       this help
+#   -u | --update-cache   regenerate the catalog cache (both distros), then continue
+#   -o | --override       re-download even if the ISO already exists in ISOs/Source
+#                         (default comes from OVERRIDE_EXISTING_SOURCE_ISO in
+#                         configs/custom-iso-builder.cfg)
+#   -v | --version <ver>  preselect version (skips prompt)
+#   -f | --flavor <f>     preselect flavor: live-server|desktop (ubuntu),
+#                         netinst|dvd (debian)
+#   -a | --arch <a>       preselect arch (default: amd64)
+#   -l | --list           print the catalog for the distro and exit
+#   -c | --check-configs  validate iso_url / iso_checksum / iso names of every cfg
+#                         in configs/available/ and configs/build/ (live checks)
+#   -n | --no-interactive  fail instead of prompting (requires -v and -f)
+#   -d | --dry-run        show what would be done: no download, no scaffold written
+#   -h | --help           this help
 #
 # Examples — how to DOWNLOAD an ISO:
 #   scripts/iso-catalog.sh ubuntu                          # interactive: pick version+flavor, confirm, download
@@ -42,7 +42,7 @@
 #   scripts/scaffolds/<distro>.spec + scripts/scaffolds/<distro>.scaffold
 #
 # Requirements: bash, curl. Works on macOS and in the Debian container.
-CATALOG_VERSION="0.0.3"
+CATALOG_VERSION="0.0.4"
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -203,11 +203,14 @@ cache_write() { # regenerates the whole cache file (both distros)
     echo "    checksum_url: https://releases.ubuntu.com/{version}/SHA256SUMS (SHA256)"
     echo "    flavors: live-server, desktop"
     echo "  debian:"
+    echo "    # archive layout: iso-cd/ = netinst only (small, needs internet at install time);"
+    echo "    # full CD sets are jigdo-only in the archive. DVD = full offline install."
     echo "    netinst:"
     echo "      iso_name: debian-{version}-{arch}-netinst.iso"
     echo "      iso_url: https://cdimage.debian.org/cdimage/archive/{version}/{arch}/iso-cd/{iso_name}"
     echo "      checksum_url: https://cdimage.debian.org/cdimage/archive/{version}/{arch}/iso-cd/SHA512SUMS (SHA512)"
     echo "    dvd:"
+    echo "      # big image (~4GB): full offline install, no internet needed on the target"
     echo "      iso_name: debian-{version}-{arch}-DVD-1.iso"
     echo "      iso_url: https://cdimage.debian.org/cdimage/archive/{version}/{arch}/iso-dvd/{iso_name}"
     echo "      checksum_url: https://cdimage.debian.org/cdimage/archive/{version}/{arch}/iso-dvd/SHA512SUMS (SHA512)"
@@ -411,15 +414,15 @@ SEL_VERSION="" SEL_FLAVOR="" SEL_ARCH="amd64"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     debian|ubuntu) DISTRO="$1" ;;
-    --update-cache) UPDATE_CACHE=true ;;
-    --override) OVERRIDE=true ;;
-    --no-interactive) NO_INTERACTIVE=true ;;
-    --dry-run) DRY_RUN=true ;;
-    --list) LIST_ONLY=true ;;
-    --check-configs) CHECK_CONFIGS=true ;;
-    --version) shift; [[ $# -ge 1 ]] || die "--version needs a value"; SEL_VERSION="$1" ;;
-    --flavor) shift; [[ $# -ge 1 ]] || die "--flavor needs a value"; SEL_FLAVOR="$1" ;;
-    --arch) shift; [[ $# -ge 1 ]] || die "--arch needs a value"; SEL_ARCH="$1" ;;
+    -u|--update-cache) UPDATE_CACHE=true ;;
+    -o|--override) OVERRIDE=true ;;
+    -n|--no-interactive) NO_INTERACTIVE=true ;;
+    -d|--dry-run) DRY_RUN=true ;;
+    -l|--list) LIST_ONLY=true ;;
+    -c|--check-configs) CHECK_CONFIGS=true ;;
+    -v|--version) shift; [[ $# -ge 1 ]] || die "-v/--version needs a value"; SEL_VERSION="$1" ;;
+    -f|--flavor) shift; [[ $# -ge 1 ]] || die "-f/--flavor needs a value"; SEL_FLAVOR="$1" ;;
+    -a|--arch) shift; [[ $# -ge 1 ]] || die "-a/--arch needs a value"; SEL_ARCH="$1" ;;
     -h|--help) show_help; exit 0 ;;
     *) die "unknown argument: $1 (see --help)" ;;
   esac

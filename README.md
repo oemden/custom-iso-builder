@@ -25,13 +25,14 @@ Follow these steps **in order**. Each step points to the detailed section below.
 
 | # | Step | Files / Directory | Details |
 | --- | --- | --- | --- |
-| 1 | **One-time** — configure your environment | `.env` | [Section 1: Environment (.env)](#1-environment-env) |
-| 2 | **One-time** — set builder options | `configs/custom-iso-builder.cfg` | [Section 2: Builder Options](#2-builder-options-custom-iso-buildercfg) |
-| 3 | Prepare your preseed / autoinstall file | `preseeds/` or `preseeds/private/` | [Section 4: Preseed / Autoinstall Files](#4-preseed--autoinstall-files) |
-| 4 | Create your OS config and point it to the preseed file | `configs/available/` (start), see templates in `configs/templates/` | [Section 3: OS Configuration](#3-os-configuration) |
-| 5 | **Activate the build** — copy exactly ONE config into | `configs/build/` | [Section 3: OS Configuration](#3-os-configuration) |
-| 6 | Build the ISO | `docker-compose up` (preferred) or `sudo ./create-iso.sh` | [Section 5: Usage](#5-usage) |
-| 7 | Check the result | `ISOs/Custom/` (+ upload if enabled) | [Section 5: Usage](#5-usage) |
+| 1 | Discover & download a new source ISO (optional — `create-iso.sh` also auto-downloads missing ISOs at build time) | `scripts/iso-catalog.sh` → `ISOs/Source/` + a scaffold in `configs/templates/` | [Section 0: Catalog Script](#0-catalog-script-iso-catalogsh) |
+| 2 | **One-time** — configure your environment | `.env` | [Section 1: Environment (.env)](#1-environment-env) |
+| 3 | **One-time** — set builder options | `configs/custom-iso-builder.cfg` | [Section 2: Builder Options](#2-builder-options-custom-iso-buildercfg) |
+| 4 | Prepare your preseed / autoinstall file | `preseeds/` or `preseeds/private/` | [Section 4: Preseed / Autoinstall Files](#4-preseed--autoinstall-files) |
+| 5 | Create your OS config and point it to the preseed file | `configs/available/` (start), see templates in `configs/templates/` | [Section 3: OS Configuration](#3-os-configuration) |
+| 6 | **Activate the build** — copy exactly ONE config into | `configs/build/` | [Section 3: OS Configuration](#3-os-configuration) |
+| 7 | Build the ISO | `docker-compose up` (preferred) or `sudo ./create-iso.sh` | [Section 5: Usage](#5-usage) |
+| 8 | Check the result | `ISOs/Custom/` (+ upload if enabled) | [Section 5: Usage](#5-usage) |
 
 In short:
 
@@ -40,6 +41,32 @@ In short:
 - **`configs/build/`** is the trigger: one config file there = one build. I want to use git commits to trigger builds, so: one commit per new ISO.
 
 ---
+
+## 0. Catalog Script (`iso-catalog.sh`)
+
+Optional helper — **the easy way to get a new source ISO** and a ready config for it.
+If you skip it, `create-iso.sh` will still auto-download a missing source ISO at build time
+(as long as `iso_url` is correct in your config).
+
+```bash
+scripts/iso-catalog.sh ubuntu -l                 # list what exists upstream (newest first)
+scripts/iso-catalog.sh ubuntu                     # interactive: pick version + flavor → download
+scripts/iso-catalog.sh ubuntu -v 26.10 -f live-server -n    # direct: download + scaffold, no prompts
+scripts/iso-catalog.sh -c                         # validate all cfg URLs (available/ + build/)
+scripts/iso-catalog.sh ubuntu -u                  # refresh the catalog, then commit it
+```
+
+What a download does:
+
+- downloads to `ISOs/Source/` with a rectangle progress bar
+- verifies the checksum (SHA256 Ubuntu / SHA512 Debian) before accepting the file
+- skips the download if the ISO is already there (`-o` to force, e.g. corrupted ISO)
+- scaffolds a config in `configs/templates/` (never `available/`, never `build/`) —
+  if a template already exists it is compared and you choose: replace or keep
+
+Flavors: Ubuntu `live-server` / `desktop`; Debian `netinst` (small, needs internet at
+install time) / `dvd` (~4 GB, **full offline install**). Distro specifics live in
+`scripts/scaffolds/` (see `scripts/README.md`).
 
 ## 1. Environment (`.env`)
 
@@ -265,42 +292,11 @@ For example:
 
 ### Discover & Download New Source ISOs (catalog)
 
-`scripts/iso-catalog.sh` (v0.0.1) queries the upstream Debian / Ubuntu download
-directories, downloads the picked ISO to `ISOs/Source` (checksum-verified) and
-scaffolds a ready config in `configs/templates/` (never `configs/available/` —
-that stays a hand-curated library; and never `configs/build/` — activation stays
-a deliberate copy).
-
-**How to download an ISO:**
-
-```bash
-scripts/iso-catalog.sh ubuntu                                            # interactive: pick version + flavor, confirm, download
-scripts/iso-catalog.sh ubuntu --version 26.10 --flavor live-server       # direct download
-scripts/iso-catalog.sh ubuntu --list                                     # just show what exists upstream (with download hints)
-```
-
-Other flags: `--update-cache`, `--override`, `--no-interactive` (requires
-`--version` and `--flavor`), `--arch`, `--dry-run`, `--check-configs`, `--help`.
-
-**Validate your configs' URLs** (the URL & ISO-name matrix):
-
-```bash
-scripts/iso-catalog.sh --check-configs
-```
-
-Checks every cfg in `configs/available/` and `configs/build/`: live URL check,
-checksum URL check (must contain the ISO entry), nomenclature match against the
-`nomenclature:` section of the catalog, and whether the ISO is already cached
-in `ISOs/Source`. Exits non-zero on broken links — useful before any build.
-
-- The catalog cache `configs/catalog/catalog.yml` is a plain list plus the
-  nomenclature matrix — it is **committed**. Regenerate with `--update-cache`
-  when new releases land (e.g. a new Ubuntu), then commit.
-- Downloads are verified: SHA256 (Ubuntu, `SHA256SUMS`) / SHA512 (Debian, `SHA512SUMS`),
-  via `sha???sum` or `shasum` — works on macOS and in the container.
-- An ISO already present in `ISOs/Source` is skipped unless `--override` is given
-  (default honors `OVERRIDE_EXISTING_SOURCE_ISO` from `configs/custom-iso-builder.cfg` —
-  use it to re-download a corrupted ISO).
+See [Section 0: Catalog Script](#0-catalog-script-iso-catalogsh) — the catalog
+cache (`configs/catalog/catalog.yml`) and the URL/ISO-name nomenclature matrix
+are **committed**; regenerate with `-u` when new releases land, then commit.
+Before any build you can validate every cfg's URLs with `scripts/iso-catalog.sh -c`
+(live checks; exits non-zero on broken links).
 
 ### Run the Script locally
 

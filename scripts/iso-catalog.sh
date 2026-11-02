@@ -26,7 +26,7 @@
 #                         netinst|dvd (debian)
 #   -a | --arch <a>       preselect arch (default: amd64)
 #   -l | --list           print the catalog for the distro and exit
-#   -c | --check-configs  validate iso_url / iso_checksum / iso names of every cfg
+#   -c | --check-configs  validate iso_url / iso_checksum / iso names of every .conf
 #                         in configs/available/ and configs/build/ (live checks)
 #   -n | --no-interactive  fail instead of prompting (requires -v and -f)
 #   -d | --dry-run        show what would be done: no download, no scaffold written
@@ -344,7 +344,7 @@ download_and_verify() { # <url> <iso_name> <sums_url> <algo 256|512>
 check_configs() { # validate iso_url / iso_checksum / iso names of every cfg (live checks)
   local cfg vals os ver arch iso url sums flavor subdir expected url_st sum_st nom_st local_st any_fail=false
   local -a cfgs=()
-  for cfg in "${ROOT_DIR}"/configs/available/*.cfg "${ROOT_DIR}"/configs/build/*.cfg; do
+  for cfg in "${ROOT_DIR}"/configs/available/*.conf "${ROOT_DIR}"/configs/build/*.conf; do
     [[ -f "$cfg" ]] && cfgs+=("$(basename "$cfg")|$cfg")
   done
   [[ ${#cfgs[@]} -gt 0 ]] || die "no cfg files found in configs/available/ or configs/build/"

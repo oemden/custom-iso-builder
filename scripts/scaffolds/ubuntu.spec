@@ -6,4 +6,4 @@ ISO_NAME="ubuntu-${VERSION}-${FLAVOR}-${ARCH}.iso"
 ISO_URL="https://releases.ubuntu.com/${VERSION}/${ISO_NAME}"
 SUMS_URL="https://releases.ubuntu.com/${VERSION}/SHA256SUMS"
 ALGO=256
-OUT="${ROOT_DIR}/configs/templates/ubuntu-${VERSION}-${FLAVOR}-example.cfg"
+OUT="${ROOT_DIR}/configs/templates/ubuntu-${VERSION}-${FLAVOR}-example.conf"

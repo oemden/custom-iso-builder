@@ -9,4 +9,4 @@ esac
 ISO_URL="https://cdimage.debian.org/cdimage/archive/${VERSION}/${ARCH}/${SC_SUBDIR}/${ISO_NAME}"
 SUMS_URL="https://cdimage.debian.org/cdimage/archive/${VERSION}/${ARCH}/${SC_SUBDIR}/SHA512SUMS"
 ALGO=512
-OUT="${ROOT_DIR}/configs/templates/debian-${VERSION}-example.cfg"
+OUT="${ROOT_DIR}/configs/templates/debian-${VERSION}-example.conf"

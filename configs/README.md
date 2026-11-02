@@ -14,16 +14,16 @@ file to bake in, and the custom ISO name. See main README →
 
 | File | OS | Version | Flavor | Preseed / autoinstall referenced | Output comment |
 | --- | --- | --- | --- | --- | --- |
-| `debian-13.1.0.cfg` | debian | 13.1.0 | DVD-1 | `preseed_debian-13.1.0.cfg` | `CloudInitReady` |
-| `debian-cloudinit-12.9.0.cfg` | debian | 12.9.0 | netinst | `preseed_debian-cloudinit-12.9.0.cfg` | `CloudInitReady` |
-| `debian-cloudinit-13.1.0.cfg` | debian | 13.1.0 | DVD-1 | `preseed_debian-cloudinit-13.1.0.cfg` | `CloudInitTest` |
-| `ubuntu-24.04.3.cfg` | ubuntu | 24.04.3 | live-server | `autoinstall_ubuntu-24.04.3.yml` | `vmware_tests` |
-| `ubuntu-25.10.cfg` | ubuntu | 25.10 | live-server | `autoinstall_ubuntu-25.10.yml` | `vmware_tests` |
-| `ubuntu-25.10-live-server.cfg` | ubuntu | 25.10 | live-server | `autoinstall_ubuntu-25.10-live-server.yml` | `vmware_tests` |
-| `ubuntu-25.10-desktop.cfg` | ubuntu | 25.10 | desktop | `private/autoinstall_ubuntu-25.10-desktop.yml` | `baremetal` |
+| `debian-13.1.0.conf` | debian | 13.1.0 | DVD-1 | `preseed_debian-13.1.0.cfg` | `CloudInitReady` |
+| `debian-cloudinit-12.9.0.conf` | debian | 12.9.0 | netinst | `preseed_debian-cloudinit-12.9.0.cfg` | `CloudInitReady` |
+| `debian-cloudinit-13.1.0.conf` | debian | 13.1.0 | DVD-1 | `preseed_debian-cloudinit-13.1.0.cfg` | `CloudInitTest` |
+| `ubuntu-24.04.3.conf` | ubuntu | 24.04.3 | live-server | `autoinstall_ubuntu-24.04.3.yml` | `vmware_tests` |
+| `ubuntu-25.10.conf` | ubuntu | 25.10 | live-server | `autoinstall_ubuntu-25.10.yml` | `vmware_tests` |
+| `ubuntu-25.10-live-server.conf` | ubuntu | 25.10 | live-server | `autoinstall_ubuntu-25.10-live-server.yml` | `vmware_tests` |
+| `ubuntu-25.10-desktop.conf` | ubuntu | 25.10 | desktop | `private/autoinstall_ubuntu-25.10-desktop.yml` | `baremetal` |
 
 ## `build/` (active)
 
 | File | Notes |
 | --- | --- |
-| `ubuntu-25.10-live-server-latest-kernel.cfg` | currently active — produces `ubuntu-25.10-live-server-amd64-latest-kernel-0.0.1.iso` |
+| `ubuntu-25.10-live-server-latest-kernel.conf` | currently active — produces `ubuntu-25.10-live-server-amd64-latest-kernel-0.0.1.iso` |

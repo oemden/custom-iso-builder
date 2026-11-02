@@ -12,7 +12,7 @@ iso_volume_name="ubuntu-__VERSION__-__ARCH__-netinst.iso"
 
 # ## File names (directories are hardcoded in script for Docker compatibility)
 # config file name
-config_file="ubuntu-__VERSION__-__FLAVOR__.cfg"
+config_file="ubuntu-__VERSION__-__FLAVOR__.conf"
 # preseed file names ( Debian )
 preseed_template="autoinstall_ubuntu-__VERSION__-__FLAVOR__-template.yml"
 preseed_file="autoinstall_ubuntu-__VERSION__-__FLAVOR__.yml"

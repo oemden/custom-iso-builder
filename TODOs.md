@@ -16,6 +16,7 @@
 - [ ] Wire up template → file copy logic (`preseed_template` / `user_data_template` currently unused by create-iso.sh)
 - [ ] Fix checksum file naming (SHA256 value saved in a `.md5`-named file)
 - [ ] Multi-target upload support (Proxmox, AWS, etc.)
+- [ ] eventually check if can be used for other Porjects ( example: ESXI-or- Proxmox automatic setup )
 
 ## ISO Catalog script
 
@@ -32,7 +33,7 @@ Remaining idea: also mirror the Ubuntu daily/ flavored builds from cdimage.ubunt
 
 ## Config file naming
 
-- [ ] Disambiguate `.cfg`: rename `configs/**` build configs to `.conf` (bash-sourced), keep `custom-iso-builder.cfg`, preseeds stay `.cfg` (Debian convention)
+- [x] Disambiguate `.cfg`: `configs/**` build configs renamed to `.conf`; `custom-iso-builder.cfg` and preseeds stay `.cfg` (Debian convention)
 
 ## Cheksum Option
 

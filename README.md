@@ -89,7 +89,7 @@ If you skip it, `create-iso.sh` will still auto-download a missing source ISO at
 scripts/iso-catalog.sh ubuntu -l                 # list what exists upstream (newest first)
 scripts/iso-catalog.sh ubuntu                     # interactive: pick version + flavor → download
 scripts/iso-catalog.sh ubuntu -v 26.10 -f live-server -n    # direct: download + scaffold, no prompts
-scripts/iso-catalog.sh -c                         # validate all cfg URLs (available/ + build/)
+scripts/iso-catalog.sh -c                         # validate all .conf URLs (available/ + build/)
 scripts/iso-catalog.sh ubuntu -u                  # refresh the catalog, then commit it
 ```
 
@@ -166,7 +166,7 @@ For now, I prefer a commit per new `.iso` I want to create.
 
 ### How to create a config
 
-1. Start from `configs/templates/debian-13.1.0-example.cfg` or `configs/templates/ubuntu-25.10-example.cfg`, or copy an existing one from `configs/available/`.
+1. Start from `configs/templates/debian-13.1.0-example.conf` or `configs/templates/ubuntu-25.10-example.conf`, or copy an existing one from `configs/available/`.
 2. Save it in `configs/available/` (your library of ready configs).
 3. When you want to build, copy/move **exactly one** file into `configs/build/`.
 
@@ -209,7 +209,7 @@ There is small Helper Script to download Source ISOs refer to above Section: **
 > This means the value may include a subpath — this is how you use the private vault:
 > `user_data_file="private/autoinstall_ubuntu-25.10-desktop.yml"` (see [Section 4](#4-preseed--autoinstall-files)).
 
-### Debian Configuration Example (`debian-13.1.0.cfg`)
+### Debian Configuration Example (`debian-13.1.0.conf`)
 
 ```bash
 # Linux OS Type Family (use lowercase names like 'debian' or 'ubuntu')
@@ -224,7 +224,7 @@ iso_url="https://cdimage.debian.org/cdimage/archive/${debian_version}/${debian_a
 iso_checksum="https://cdimage.debian.org/cdimage/archive/${debian_version}/${debian_arch}/iso-dvd/SHA512SUMS"
 
 # File names (directories are hardcoded for Docker compatibility)
-config_file="debian-${debian_version}.cfg"
+config_file="debian-${debian_version}.conf"
 preseed_file="preseed_debian-${debian_version}.cfg"
 
 # Custom ISO output name
@@ -233,7 +233,7 @@ custom_iso_comment="custom"
 custom_iso_name="debian-${debian_version}-${debian_arch}-${custom_iso_comment}-${custom_iso_version}.iso"
 ```
 
-### Ubuntu Configuration Example (`ubuntu-25.10-live-server.cfg`)
+### Ubuntu Configuration Example (`ubuntu-25.10-live-server.conf`)
 
 ```bash
 # Linux OS Type Family (use lowercase names like 'debian' or 'ubuntu')
@@ -249,7 +249,7 @@ iso_url="https://releases.ubuntu.com/${debian_version}/${debian_iso_name}"
 iso_volume_name="ubuntu-server ${debian_version} ${debian_arch}"
 
 # File names (directories are hardcoded for Docker compatibility)
-config_file="ubuntu-${debian_version}-${type}.cfg"
+config_file="ubuntu-${debian_version}-${type}.conf"
 # Autoinstall file (Ubuntu) — replaces preseed_file.
 # Add the "private/" prefix to use a personal file from preseeds/private/
 user_data_file="autoinstall_ubuntu-${debian_version}-${type}.yml"

@@ -12,7 +12,7 @@ iso_volume_name="debian-__VERSION__-__ARCH__-netinst.iso"
 
 # ## File names (directories are hardcoded in script for Docker compatibility)
 # config file name
-config_file="debian-__VERSION__.cfg"
+config_file="debian-__VERSION__.conf"
 # preseed file names
 preseed_template="preseed_debian-__VERSION__-template.cfg"
 preseed_file="preseed_debian-__VERSION__.cfg"

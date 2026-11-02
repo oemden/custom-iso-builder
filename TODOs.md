@@ -13,6 +13,23 @@
 - [ ] - Check if remote ISO file exists on ssh host
 - [ ] - Upload to temp directory on ssh host
 - [ ] Verify checksum on remote host (LATER USE)
+- [ ] Wire up template → file copy logic (`preseed_template` / `user_data_template` currently unused by create-iso.sh)
+- [ ] Fix checksum file naming (SHA256 value saved in a `.md5`-named file)
+- [ ] Multi-target upload support (Proxmox, AWS, etc.)
+
+## ISO Catalog script
+
+Standalone helper `scripts/iso-catalog.sh` (not part of create-iso.sh):
+
+- [ ] Query Debian (cdimage.debian.org) / Ubuntu (releases.ubuntu.com, cdimage.ubuntu.com) directories for available images
+- [ ] Cache directory listings; no cache → build it, cache exists → ask: update cache or continue
+- [ ] Interactive selection: version / arch / flavor (netinst, DVD, live-server, desktop) → download to `ISOs/Source`
+- [ ] Skip download if the ISO already exists — override flag to force re-download (corrupted ISO), reuse `OVERRIDE_EXISTING_SOURCE_ISO` semantics
+- [ ] Auto-fill `iso_checksum` in the generated config template and verify checksum after download
+
+## Config file naming
+
+- [ ] Disambiguate `.cfg`: rename `configs/**` build configs to `.conf` (bash-sourced), keep `custom-iso-builder.cfg`, preseeds stay `.cfg` (Debian convention)
 
 ## Cheksum Option
 

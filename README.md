@@ -366,14 +366,7 @@ Follow this procedure: [https://documentation.ubuntu.com/desktop/en/latest/how-t
 
 ## TODOs
 
-Tracked in `TODOs.md` (same list, kept in sync). Highlights:
-
-- [ ] Verify remote checksum after upload
-- [ ] Variable substitution in preseed files (`envsubst`)
-- [ ] Wire up template → file copy logic (`preseed_template` / `user_data_template` currently unused)
-- [ ] Fix checksum file naming (SHA256 value saved as `.md5`)
-- [ ] Multi-target support (Proxmox, AWS, etc.)
-- [ ] Validate autoinstall files with subiquity check tools
+All TODOs are tracked in [TODOs.md](TODOs.md).
 
 ## Cloudflare Note
 

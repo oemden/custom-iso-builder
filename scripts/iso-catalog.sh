@@ -39,7 +39,7 @@
 #   scripts/iso-catalog.sh debian --check-configs          # validate all cfg URLs
 #
 # Requirements: bash, curl. Works on macOS and in the Debian container.
-CATALOG_VERSION="0.0.1"
+CATALOG_VERSION="0.0.2"
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -238,12 +238,46 @@ debian_iso_url()   { echo "${DEBIAN_INDEX}${1}/amd64/${2}/${3}"; }     # $2: iso
 debian_sums_url()  { echo "${DEBIAN_INDEX}${1}/amd64/${2}/SHA512SUMS"; } # algo 512
 
 # --- download & verify -----------------------------------------------------
+file_size() { # portable stat (macOS/BSD + GNU)
+  stat -f%z "$1" 2>/dev/null || stat -c%s "$1" 2>/dev/null || echo 0
+}
+
+progress_bar() { # <url> <dest> — curl silent + our own rectangle bar (█)
+  local url="$1" dest="$2" expected pid rc size pct filled empty bar width=40
+  expected=$(curl -fsSIL --max-time 20 "$url" 2>/dev/null \
+    | awk 'tolower($1)=="content-length:" { s=$2 } END { print s+0 }' \
+    | tail -1)
+  # run curl quietly in the background
+  curl -fL --retry 3 -sS -o "$dest" "$url" &
+  pid=$!
+  while kill -0 "$pid" 2>/dev/null; do
+    size=$(file_size "$dest")
+    if [[ "$expected" -gt 0 ]]; then
+      pct=$(( size * 100 / expected ))
+      filled=$(( size * width / expected )); (( filled > width )) && filled=$width
+      printf -v bar '%*s' "$filled" ''; bar=${bar// /█}
+      printf -v empty '%*s' $(( width - filled )) ''
+      printf '\r[%s%s] %3d%% (%s / %s bytes)' "$bar" "$empty" "$pct" "$size" "$expected"
+    else
+      printf '\r%s bytes (size unknown)' "$size"
+    fi
+    sleep 0.5
+  done
+  wait "$pid" && rc=0 || rc=$?
+  if [[ "$expected" -gt 0 ]]; then
+    printf -v bar '%*s' "$width" ''; bar=${bar// /█}
+    printf '\r[%s] 100%% (%s bytes)\n' "$bar" "$expected"
+  else
+    printf '\r%s bytes (size unknown)\n' "$(file_size "$dest")"
+  fi
+  [[ "$rc" -eq 0 ]] || die "download failed (curl exit ${rc}): $url"
+}
+
 download_and_verify() { # <url> <iso_name> <sums_url> <algo 256|512>
   local url="$1" iso="$2" sums_url="$3" algo="$4" tool sums_line
   mkdir -p "$SOURCE_DIR"
   info "downloading ${iso} ..."
-  curl -fL --retry 3 --progress-bar -o "${SOURCE_DIR}/${iso}.part" "$url" \
-    || die "download failed: $url"
+  progress_bar "$url" "${SOURCE_DIR}/${iso}.part"
   info "verifying checksum (SHA${algo}) ..."
   # checksum lines: "<hash>  file" (debian) or "<hash> *file" (ubuntu) — normalize both
   sums_line=$(curl -fsSL --max-time 30 "$sums_url" \

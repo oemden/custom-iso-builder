@@ -21,11 +21,14 @@
 
 Standalone helper `scripts/iso-catalog.sh` (not part of create-iso.sh):
 
-- [ ] Query Debian (cdimage.debian.org) / Ubuntu (releases.ubuntu.com, cdimage.ubuntu.com) directories for available images
-- [ ] Cache directory listings; no cache → build it, cache exists → ask: update cache or continue
-- [ ] Interactive selection: version / arch / flavor (netinst, DVD, live-server, desktop) → download to `ISOs/Source`
-- [ ] Skip download if the ISO already exists — override flag to force re-download (corrupted ISO), reuse `OVERRIDE_EXISTING_SOURCE_ISO` semantics
-- [ ] Auto-fill `iso_checksum` in the generated config template and verify checksum after download
+- [x] Query Debian (cdimage.debian.org) / Ubuntu (releases.ubuntu.com, cdimage.ubuntu.com) directories for available images
+- [x] Cache directory listings; no cache → build it, cache exists → ask: update cache or continue
+- [x] Interactive selection: version / arch / flavor (netinst, DVD, live-server, desktop) → download to `ISOs/Source`
+- [x] Skip download if the ISO already exists — override flag to force re-download (corrupted ISO), reuse `OVERRIDE_EXISTING_SOURCE_ISO` semantics
+- [x] Auto-fill `iso_checksum` in the generated config template and verify checksum after download
+
+Done — cache lives in `configs/catalog/catalog.yml` (committed list, organized by distro).
+Remaining idea: also mirror the Ubuntu daily/ flavored builds from cdimage.ubuntu.com.
 
 ## Config file naming
 

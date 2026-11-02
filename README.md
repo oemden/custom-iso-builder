@@ -263,6 +263,29 @@ For example:
 
 ## 5. Usage
 
+### Discover & Download New Source ISOs (catalog)
+
+`scripts/iso-catalog.sh` queries the upstream Debian / Ubuntu download directories,
+downloads the picked ISO to `ISOs/Source` (checksum-verified) and scaffolds a ready
+config in `configs/available/`. It never touches `configs/build/` — activation stays
+a deliberate copy.
+
+```bash
+scripts/iso-catalog.sh ubuntu --list                                  # show available versions / flavors
+scripts/iso-catalog.sh ubuntu                                         # interactive: pick, download, scaffold
+scripts/iso-catalog.sh ubuntu --update-cache                          # refresh the catalog, then commit it
+scripts/iso-catalog.sh debian --version 13.6.0 --flavor netinst --dry-run
+```
+
+- The catalog cache `configs/catalog/catalog.yml` is a plain list — it is **committed**.
+  Regenerate with `--update-cache` when new releases land (e.g. a new Ubuntu), then commit.
+- Downloads are verified: SHA256 (Ubuntu, `SHA256SUMS`) / SHA512 (Debian, `SHA512SUMS`),
+  via `sha???sum` or `shasum` — works on macOS and in the container.
+- An ISO already present in `ISOs/Source` is skipped unless `--override` is given
+  (default honors `OVERRIDE_EXISTING_SOURCE_ISO` from `configs/custom-iso-builder.cfg` —
+  use it to re-download a corrupted ISO).
+- Other flags: `--no-interactive` (requires `--version` and `--flavor`), `--arch`, `--dry-run`, `--help`.
+
 ### Run the Script locally
 
 The script can be run locally, but the main goal is the Docker container — it allows me to create all

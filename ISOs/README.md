@@ -9,5 +9,5 @@ No file table here — ISO contents are git-ignored. This directory only explain
 | `Valid/` | manually validated ISOs |
 
 The builder downloads a missing source ISO automatically (`create-iso.sh`, fetch-if-missing).
-For discovering new upstream images (e.g. new Ubuntu 26.x), see the planned
-`scripts/iso-catalog.sh` in TODOs.
+For discovering and downloading new upstream images (e.g. a new Ubuntu release), use
+`scripts/iso-catalog.sh` — see main README → Usage.

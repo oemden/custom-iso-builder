@@ -458,6 +458,14 @@ Follow this procedure: [https://documentation.ubuntu.com/desktop/en/latest/how-t
 
 All TODOs are tracked in [TODOs.md](TODOs.md).
 
+## Releases & Tags
+
+- Work merges into `develop` (one branch per feature cycle, deleted after merge).
+- A **release** is tagged (`vX.Y.Z`, annotated) only once it lands on `main` via the
+  `develop` → `main` MR — never tag the `develop` tip directly.
+- `production` follows `main` and inherits the same commits, so the tags apply to it as well.
+- Push with `git push origin main --tags` (tags do not travel with a plain push).
+
 ## Cloudflare Note
 
 To download `preseed-creator` executable with `wget` or `curl`, add **framagit.org** to a **"Do Not Inspect"** Cloudflare Gateway HTTP policy.

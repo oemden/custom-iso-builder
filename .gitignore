@@ -9,6 +9,7 @@ ISOs/*.old
 ISOs/*/*.iso
 ISOs/*/*.md5
 ISOs/*/*.old
+ISOs/**/*.part
 
 
 # Working directories and files

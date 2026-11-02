@@ -15,6 +15,7 @@ for usage, the `private/` vault and password generation.
 | `preseed_debian-12.cfg` | debian | 12 (bookworm) | early simple preseed, no cloud-init |
 | `preseed_debian-13.1.0.cfg` | debian | 13.1.0 (trixie) | v0.0.2, packer4-derived; pkgsel already includes cloud-init |
 | `preseed_debian-cloudinit-12.9.0.cfg` | debian | 12.9.0 (bookworm) | v0.0.2 lineage; pkgsel includes cloud-init (built the 12.9.0 CloudInitReady ISO) |
+| `preseed_debian-cloudinit-13.1.0.cfg` | debian | 13.1.0 | explicit cloudinit-named variant; content matches the 13.1.0 base (cloud-init already in pkgsel) — kept so cloud-init usage is obvious from the name |
 | `autoinstall_ubuntu-24.04.3.yml` | ubuntu / live-server | 24.04.3 | first-generation standard autoinstall (pre-flavor split) |
 | `autoinstall_ubuntu-24.04.3-live-server.yml` | ubuntu / live-server | 24.04.3 | standard; DHCP netplan network block active |
 | `autoinstall_ubuntu-25.10.yml` | ubuntu / live-server | 25.10 | first-gen standard: DHCP network active, `identity:` commented, `allow-pw: true` |

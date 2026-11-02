@@ -15,7 +15,7 @@ file to bake in, and the custom ISO name. See main README →
 | --- | --- | --- | --- | --- | --- |
 | `debian-13.1.0.cfg` | debian | 13.1.0 | DVD-1 | `preseed_debian-13.1.0.cfg` | `CloudInitReady` |
 | `debian-cloudinit-12.9.0.cfg` | debian | 12.9.0 | netinst | `preseed_debian-cloudinit-12.9.0.cfg` | `CloudInitReady` |
-| `debian-cloudinit-13.1.0.cfg` | debian | 13.1.0 | DVD-1 | `preseed_debian-13.1.0.cfg` | `CloudInitTest` |
+| `debian-cloudinit-13.1.0.cfg` | debian | 13.1.0 | DVD-1 | `preseed_debian-cloudinit-13.1.0.cfg` | `CloudInitTest` |
 | `ubuntu-24.04.3.cfg` | ubuntu | 24.04.3 | live-server | `autoinstall_ubuntu-24.04.3.yml` | `vmware_tests` |
 | `ubuntu-25.10.cfg` | ubuntu | 25.10 | live-server | `autoinstall_ubuntu-25.10.yml` | `vmware_tests` |
 | `ubuntu-25.10-live-server.cfg` | ubuntu | 25.10 | live-server | `autoinstall_ubuntu-25.10-live-server.yml` | `vmware_tests` |

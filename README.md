@@ -1,6 +1,6 @@
 # Custom ISO Builder
 
-**Version:** 0.3.5
+**Version:** 0.4.0
 
 Automated Debian and Ubuntu custom ISO creation with preseed/autoinstall for unattended installations.
 Designed for VMware ESXi but compatible with any hypervisor or USB boot.

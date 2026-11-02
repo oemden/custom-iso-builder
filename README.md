@@ -109,7 +109,7 @@ and the script will automatically download the source `.iso` if not present (con
 | --- | --- | --- |
 | `linux_os_type` | Linux OS type family — drives which branch the script runs | `"debian"` / `"ubuntu"` |
 | `debian_version` | OS version | `"13.1.0"` / `"25.10"` |
-| `debian_codename` | Distro codename (informational — not consumed by the script) | `"plucky"` (25.10) / `"trixie"` (13) |
+| `debian_codename` | Distro codename (informational — not consumed by the script) | `"questing"` (25.10) / `"trixie"` (13) |
 | `debian_arch` | Distro architecture | `"amd64"` |
 | `type` | Ubuntu flavour used in ISO name | `"live-server"` / `"desktop"` |
 | `debian_iso_name` | The ISO name | `"ubuntu-25.10-live-server-amd64.iso"` |
@@ -164,7 +164,7 @@ linux_os_type="ubuntu"
 
 # Ubuntu version and ISO variables
 debian_version="25.10"
-debian_codename="plucky"
+debian_codename="questing"
 debian_arch="amd64"
 type="live-server"
 debian_iso_name="ubuntu-${debian_version}-${type}-${debian_arch}.iso"

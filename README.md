@@ -342,6 +342,8 @@ docker logs -f iso-builder
 └── Dockerfile-root / Dockerfile-user
 ```
 
+Each directory also has its own `README.md` with a one-line summary of its files.
+
 ### SSH Configuration
 
 The script relies on `~/.ssh/config` for SSH authentication. Ensure your SSH key is properly configured.

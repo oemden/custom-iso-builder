@@ -265,26 +265,42 @@ For example:
 
 ### Discover & Download New Source ISOs (catalog)
 
-`scripts/iso-catalog.sh` queries the upstream Debian / Ubuntu download directories,
-downloads the picked ISO to `ISOs/Source` (checksum-verified) and scaffolds a ready
-config in `configs/available/`. It never touches `configs/build/` — activation stays
-a deliberate copy.
+`scripts/iso-catalog.sh` (v0.0.1) queries the upstream Debian / Ubuntu download
+directories, downloads the picked ISO to `ISOs/Source` (checksum-verified) and
+scaffolds a ready config in `configs/templates/` (never `configs/available/` —
+that stays a hand-curated library; and never `configs/build/` — activation stays
+a deliberate copy).
+
+**How to download an ISO:**
 
 ```bash
-scripts/iso-catalog.sh ubuntu --list                                  # show available versions / flavors
-scripts/iso-catalog.sh ubuntu                                         # interactive: pick, download, scaffold
-scripts/iso-catalog.sh ubuntu --update-cache                          # refresh the catalog, then commit it
-scripts/iso-catalog.sh debian --version 13.6.0 --flavor netinst --dry-run
+scripts/iso-catalog.sh ubuntu                                            # interactive: pick version + flavor, confirm, download
+scripts/iso-catalog.sh ubuntu --version 26.10 --flavor live-server       # direct download
+scripts/iso-catalog.sh ubuntu --list                                     # just show what exists upstream (with download hints)
 ```
 
-- The catalog cache `configs/catalog/catalog.yml` is a plain list — it is **committed**.
-  Regenerate with `--update-cache` when new releases land (e.g. a new Ubuntu), then commit.
+Other flags: `--update-cache`, `--override`, `--no-interactive` (requires
+`--version` and `--flavor`), `--arch`, `--dry-run`, `--check-configs`, `--help`.
+
+**Validate your configs' URLs** (the URL & ISO-name matrix):
+
+```bash
+scripts/iso-catalog.sh --check-configs
+```
+
+Checks every cfg in `configs/available/` and `configs/build/`: live URL check,
+checksum URL check (must contain the ISO entry), nomenclature match against the
+`nomenclature:` section of the catalog, and whether the ISO is already cached
+in `ISOs/Source`. Exits non-zero on broken links — useful before any build.
+
+- The catalog cache `configs/catalog/catalog.yml` is a plain list plus the
+  nomenclature matrix — it is **committed**. Regenerate with `--update-cache`
+  when new releases land (e.g. a new Ubuntu), then commit.
 - Downloads are verified: SHA256 (Ubuntu, `SHA256SUMS`) / SHA512 (Debian, `SHA512SUMS`),
   via `sha???sum` or `shasum` — works on macOS and in the container.
 - An ISO already present in `ISOs/Source` is skipped unless `--override` is given
   (default honors `OVERRIDE_EXISTING_SOURCE_ISO` from `configs/custom-iso-builder.cfg` —
   use it to re-download a corrupted ISO).
-- Other flags: `--no-interactive` (requires `--version` and `--flavor`), `--arch`, `--dry-run`, `--help`.
 
 ### Run the Script locally
 

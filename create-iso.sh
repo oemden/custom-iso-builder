@@ -74,7 +74,6 @@ ISO_CUSTOM_DIR="${ISO_DIR}/Custom"
 WORKING_DIR="custom-iso-workdir"
 
 log "echo variables"
-extra_output
 
 log "INFO" "Loading Script options"
 

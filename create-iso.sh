@@ -100,14 +100,14 @@ build_dir="${dirpath}/${BUILD_DIR}"
 ## ADD .yml and .ks support ( .ks for later use )
 
 # Count matching files directly
-config_count=$(ls "${build_dir}"/*.{cfg,yml,yaml,ks} 2>/dev/null | wc -l)
+config_count=$(ls "${build_dir}"/*.{conf,yml,yaml,ks} 2>/dev/null | wc -l)
 
 if [ "$config_count" -eq 0 ]; then
     log_error "No config file found in ${build_dir}/"
     log_error "Copy a config file to configs/build/ to proceed"
     exit 1
 elif [ "$config_count" -eq 1 ]; then
-    config_file=$(ls "${build_dir}"/*.{cfg,yml,yaml,ks} 2>/dev/null | head -n1 | xargs basename)
+    config_file=$(ls "${build_dir}"/*.{conf,yml,yaml,ks} 2>/dev/null | head -n1 | xargs basename)
     log "INFO" "Found config in build/: ${config_file}"
     source "${build_dir}/${config_file}"
     if [ $? -ne 0 ]; then
@@ -117,7 +117,7 @@ elif [ "$config_count" -eq 1 ]; then
 else
     log_error "Multiple config files found in ${build_dir}/"
     log_error "Only one config allowed in build/ directory"
-    ls "${build_dir}"/*.{cfg,yml,yaml,ks} 2>/dev/null | while read cfg; do
+    ls "${build_dir}"/*.{conf,yml,yaml,ks} 2>/dev/null | while read cfg; do
         log_error "  - $(basename "$cfg")"
     done
     exit 1

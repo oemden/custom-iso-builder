@@ -1,0 +1,35 @@
+# Linux Os Type Family ( use lowercase names like 'debian' or 'ubuntu' )
+linux_os_type="ubuntu"
+# ubuntu version and iso variables
+# scaffolded by scripts/iso-catalog.sh from scripts/scaffolds/ubuntu.scaffold
+debian_version="__VERSION__"
+debian_codename="__CODENAME__"
+debian_arch="__ARCH__"
+debian_iso_name="__ISO_NAME__"
+iso_url="__ISO_URL__"
+iso_checksum="__SUMS_URL__"
+iso_volume_name="ubuntu-__VERSION__-__ARCH__-netinst.iso"
+
+# ## File names (directories are hardcoded in script for Docker compatibility)
+# config file name
+config_file="ubuntu-__VERSION__-__FLAVOR__.cfg"
+# preseed file names ( Debian )
+preseed_template="autoinstall_ubuntu-__VERSION__-__FLAVOR__-template.yml"
+preseed_file="autoinstall_ubuntu-__VERSION__-__FLAVOR__.yml"
+# Autoinstall files ( Ubuntu ) replaces preseed_file.
+user_data_template="autoinstall_ubuntu-__VERSION__-__FLAVOR__-template.yml"
+user_data_file="autoinstall_ubuntu-__VERSION__-__FLAVOR__.yml"
+meta_data_file="meta-data"
+
+# ## isolinux customization variables
+isolinux_auto=true
+isolinux_priority=critical
+debian_installer_language=en_US
+debian_installer_country=FR
+debconf_frontend=noninteractive
+console_setup_ask_detect=false
+
+# Custom ISO output name
+custom_iso_version="0.0.1"
+custom_iso_comment="catalog"
+custom_iso_name="ubuntu-__VERSION__-__FLAVOR__-__ARCH__-${custom_iso_comment}-${custom_iso_version}.iso"

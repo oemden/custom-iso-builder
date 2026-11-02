@@ -38,8 +38,11 @@
 #   scripts/iso-catalog.sh ubuntu --list                   # just show what exists upstream
 #   scripts/iso-catalog.sh debian --check-configs          # validate all cfg URLs
 #
+# Distro specifics (URL/ISO-name rules, scaffold bodies) live in data files:
+#   scripts/scaffolds/<distro>.spec + scripts/scaffolds/<distro>.scaffold
+#
 # Requirements: bash, curl. Works on macOS and in the Debian container.
-CATALOG_VERSION="0.0.2"
+CATALOG_VERSION="0.0.3"
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -63,8 +66,10 @@ DEBIAN_MIN_MAJOR=11
 
 # --- helpers ---------------------------------------------------------------
 die()  { echo "ERROR: $*" >&2; exit 1; }
-info() { echo "[catalog] $*"; }
+info() { echo "[catalog] $*" >&2; }
 warn() { echo "[catalog] WARNING: $*" >&2; }
+
+reverse_lines() { awk '{a[NR]=$0} END{for(i=NR;i>=1;i--)print a[i]}'; }
 
 ask() { # ask <prompt> <default> -> answer on stdout
   local prompt="$1" default="$2" answer
@@ -229,13 +234,55 @@ cache_write() { # regenerates the whole cache file (both distros)
   info "cache written: ${CACHE_FILE}"
 }
 
-# --- URL construction (nomenclature, verified at download time) ------------
-ubuntu_iso_url()   { echo "${UBUNTU_INDEX}${1}/ubuntu-${1}-${2}-${3}.iso"; }
-ubuntu_sums_url()  { echo "${UBUNTU_INDEX}${1}/SHA256SUMS"; }          # algo 256
-debian_dvd()       { echo "debian-${1}-amd64-DVD-1.iso"; }
-debian_netinst()   { echo "debian-${1}-amd64-netinst.iso"; }
-debian_iso_url()   { echo "${DEBIAN_INDEX}${1}/amd64/${2}/${3}"; }     # $2: iso-dvd|iso-cd
-debian_sums_url()  { echo "${DEBIAN_INDEX}${1}/amd64/${2}/SHA512SUMS"; } # algo 512
+# --- distro resolution & scaffolding (data-driven via scripts/scaffolds/) --
+# Per-distro specifics live in scripts/scaffolds/<distro>.spec (URL/ISO-name
+# rules + output path) and scripts/scaffolds/<distro>.scaffold (config body
+# with __TOKEN__ placeholders). Adding a distro (e.g. Rocky) = add a
+# scrape function + a spec/scaffold pair — the engine below stays untouched.
+resolve_distro() { # <distro> <version> <flavor> <arch>
+  # sets caller-visible: ISO_NAME, ISO_URL, SUMS_URL, ALGO, OUT
+  local spec="${SCRIPT_DIR}/scaffolds/${1}.spec"
+  [[ -f "$spec" ]] || { warn "no scaffold spec for '${1}' (${spec})"; return 1; }
+  local VERSION="$2" FLAVOR="$3" ARCH="$4" SC_SUBDIR=""
+  # shellcheck disable=SC1090
+  source "$spec"
+  [[ -n "${ISO_NAME:-}" && -n "${ISO_URL:-}" && -n "${OUT:-}" ]] || { warn "spec ${spec} did not set ISO_NAME/ISO_URL/OUT"; return 1; }
+}
+
+scaffold() { # <distro> <version> <codename> <flavor> <arch> <write|dry> -> echoes OUT
+  local distro="$1" version="$2" codename="$3" flavor="$4" arch="$5" mode="$6"
+  local body="${SCRIPT_DIR}/scaffolds/${distro}.scaffold" rendered choice
+  [[ -f "$body" ]] || die "no scaffold body for '${distro}' (${body})"
+  resolve_distro "$distro" "$version" "$flavor" "$arch" || die "cannot resolve ${distro} ${version}/${flavor}"
+  rendered=$(mktemp)
+  sed -e "s|__VERSION__|${version}|g" -e "s|__CODENAME__|${codename}|g" -e "s|__ARCH__|${arch}|g" \
+      -e "s|__FLAVOR__|${flavor}|g" -e "s|__ISO_NAME__|${ISO_NAME}|g" -e "s|__ISO_URL__|${ISO_URL}|g" \
+      -e "s|__SUMS_URL__|${SUMS_URL}|g" "$body" > "$rendered"
+  if [[ -f "$OUT" ]]; then
+    if cmp -s "$rendered" "$OUT"; then
+      info "existing template matches scaffold — keeping: ${OUT}"
+    elif [[ "$mode" == "dry" ]]; then
+      info "existing template differs from scaffold: ${OUT}"
+    elif ! $NO_INTERACTIVE; then
+      choice=$(ask "Template exists and differs — (r)eplace or (k)eep?" "k")
+      if [[ "$choice" =~ ^[Rr] ]]; then
+        cp "$rendered" "$OUT"; info "replaced: ${OUT}"
+      else
+        info "keeping existing: ${OUT}"
+      fi
+    else
+      warn "existing template differs from scaffold — keeping existing (non-interactive): ${OUT}"
+    fi
+  else
+    if [[ "$mode" == "dry" ]]; then
+      info "--dry-run: scaffold not written (would be: ${OUT})"
+    else
+      cp "$rendered" "$OUT"; info "scaffold written: ${OUT}"
+    fi
+  fi
+  rm -f "$rendered"
+  echo "$OUT"
+}
 
 # --- download & verify -----------------------------------------------------
 file_size() { # portable stat (macOS/BSD + GNU)
@@ -290,58 +337,6 @@ download_and_verify() { # <url> <iso_name> <sums_url> <algo 256|512>
   info "checksum OK: ${SOURCE_DIR}/${iso}"
 }
 
-# --- config scaffolding ----------------------------------------------------
-# Scaffolds go to configs/templates/ (NOT configs/available/ — that stays a
-# hand-curated library). Review, adjust the preseed reference, then copy to
-# configs/build/ to trigger a build.
-scaffold_ubuntu() { # <version> <codename> <flavor> <arch> [write|dry] -> cfg path
-  local v="$1" c="$2" flavor="$3" arch="$4" mode="${5:-write}" tpl out
-  tpl="${ROOT_DIR}/configs/templates/ubuntu-25.10-example.cfg"
-  [[ -f "$tpl" ]] || die "template not found: $tpl"
-  out="${ROOT_DIR}/configs/templates/ubuntu-${v}-${flavor}-example.cfg"
-  [[ "$mode" == "write" ]] || { echo "$out"; return 0; }
-  [[ -f "$out" ]] && die "config already exists: $out (edit it manually instead)"
-  sed \
-    -e "s|^debian_version=.*|debian_version=\"${v}\"|" \
-    -e "s|^debian_codename=.*|debian_codename=\"${c}\"|" \
-    -e "s|^debian_arch=.*|debian_arch=\"${arch}\"|" \
-    -e "s|^debian_iso_name=.*|debian_iso_name=\"ubuntu-${v}-${flavor}-${arch}.iso\"|" \
-    -e "s|^# iso_url=.*||" \
-    -e "s|^iso_url=.*|iso_url=\"$(ubuntu_iso_url "$v" "$flavor" "$arch")\"|" \
-    -e "s|^# iso_checksum=\"\".*|iso_checksum=\"$(ubuntu_sums_url "$v")\"|" \
-    -e "s|^config_file=.*|config_file=\"ubuntu-${v}-${flavor}.cfg\"|" \
-    -e "s|autoinstall_ubuntu-\${debian_version}|autoinstall_ubuntu-\${debian_version}-${flavor}|g" \
-    -e "s|^custom_iso_version=.*|custom_iso_version=\"0.0.1\"|" \
-    -e "s|^custom_iso_comment=.*|custom_iso_comment=\"catalog\"|" \
-    -e "s|^custom_iso_name=.*|custom_iso_name=\"ubuntu-${v}-${flavor}-${arch}-\${custom_iso_comment}-\${custom_iso_version}.iso\"|" \
-    "$tpl" > "$out"
-  echo "$out"
-}
-
-scaffold_debian() { # <version> <codename> <flavor> [write|dry] -> cfg path
-  local v="$1" c="$2" flavor="$3" mode="${4:-write}" arch="amd64" subdir iso tpl out
-  tpl="${ROOT_DIR}/configs/templates/debian-13.1.0-example.cfg"
-  [[ -f "$tpl" ]] || die "template not found: $tpl"
-  out="${ROOT_DIR}/configs/templates/debian-${v}-example.cfg"
-  [[ "$mode" == "write" ]] || { echo "$out"; return 0; }
-  [[ -f "$out" ]] && die "config already exists: $out (edit it manually instead)"
-  if [[ "$flavor" == "dvd" ]]; then subdir="iso-dvd"; iso=$(debian_dvd "$v")
-  else subdir="iso-cd"; iso=$(debian_netinst "$v"); fi
-  sed \
-    -e "s|^debian_version=.*|debian_version=\"${v}\"|" \
-    -e "s|^debian_codename=.*|debian_codename=\"${c}\"|" \
-    -e "s|^debian_arch=.*|debian_arch=\"${arch}\"|" \
-    -e "s|^debian_iso_name=.*|debian_iso_name=\"${iso}\"|" \
-    -e "s|^iso_url=.*|iso_url=\"$(debian_iso_url "$v" "$subdir" "$iso")\"|" \
-    -e "s|^iso_checksum=.*|iso_checksum=\"$(debian_sums_url "$v" "$subdir")\"|" \
-    -e "s|^config_file=.*|config_file=\"debian-${v}.cfg\"|" \
-    -e "s|^custom_iso_version=.*|custom_iso_version=\"0.0.1\"|" \
-    -e "s|^custom_iso_comment=.*|custom_iso_comment=\"catalog\"|" \
-    -e "s|^custom_iso_name=.*|custom_iso_name=\"debian-${v}-${arch}-\${custom_iso_comment}-\${custom_iso_version}.iso\"|" \
-    "$tpl" > "$out"
-  echo "$out"
-}
-
 # --- config validation ------------------------------------------------------
 check_configs() { # validate iso_url / iso_checksum / iso names of every cfg (live checks)
   local cfg vals os ver arch iso url sums flavor subdir expected url_st sum_st nom_st local_st any_fail=false
@@ -382,15 +377,18 @@ check_configs() { # validate iso_url / iso_checksum / iso names of every cfg (li
     # nomenclature: does iso_url match the expected matrix for this distro/version/flavor?
     nom_st="-"
     if [[ -n "$url" && -n "$iso" ]]; then
+      local dfl=""
       if [[ "$os" == "ubuntu" ]]; then
-        flavor=$(echo "$iso" | sed -E "s/^ubuntu-${ver}-(.+)-${arch}\.iso\$/\\1/")
-        expected=$(ubuntu_iso_url "$ver" "$flavor" "$arch")
+        dfl=$(echo "$iso" | sed -E "s/^ubuntu-${ver}-(.+)-${arch}\.iso\$/\\1/")
       elif [[ "$os" == "debian" ]]; then
-        if [[ "$iso" == *"DVD-1.iso" ]]; then subdir="iso-dvd"; iso_n=$(debian_dvd "$ver")
-        else subdir="iso-cd"; iso_n=$(debian_netinst "$ver"); fi
-        expected=$(debian_iso_url "$ver" "$subdir" "$iso_n")
+        [[ "$iso" == *"DVD-1.iso" ]] && dfl="dvd" || dfl="netinst"
       fi
-      [[ -n "${expected:-}" ]] && { [[ "$expected" == "$url" ]] && nom_st="match" || nom_st="drift"; }
+      ISO_NAME=""; ISO_URL=""; SUMS_URL=""; ALGO=""; OUT=""
+      if resolve_distro "$os" "$ver" "$dfl" "$arch"; then
+        [[ "$ISO_URL" == "$url" ]] && nom_st="match" || nom_st="drift"
+      else
+        nom_st="no-spec"
+      fi
     fi
 
     if [[ -n "$iso" && -f "${SOURCE_DIR}/${iso}" ]]; then local_st="cached"; else local_st="-"; fi
@@ -452,12 +450,12 @@ fi
 ENTRIES=$(cache_read "$DISTRO") || die "no '${DISTRO}:' section in cache — run with --update-cache"
 
 if $LIST_ONLY; then
-  echo "# distro: ${DISTRO}  (iso-catalog v${CATALOG_VERSION}, catalog: ${CACHE_FILE})"
+  echo "# distro: ${DISTRO}  (iso-catalog v${CATALOG_VERSION}, catalog: ${CACHE_FILE}) — newest first"
   printf '%-12s %-10s %-28s %s\n' "VERSION" "CODENAME" "FLAVORS" "ARCHS"
-  while IFS= read -r e; do
+  echo "$ENTRIES" | reverse_lines | while IFS= read -r e; do
     IFS='|' read -r v c f a <<< "$e"
     printf '%-12s %-10s %-28s %s\n' "$v" "$c" "$f" "$a"
-  done <<< "$ENTRIES"
+  done
   echo ""
   echo "to download an ISO:" 
   echo "  $0 ${DISTRO}                                          # interactive: pick, confirm, download"
@@ -465,17 +463,17 @@ if $LIST_ONLY; then
   exit 0
 fi
 
-# version selection
+# version selection (displayed newest-first; 'latest' = first line)
 if [[ -z "$SEL_VERSION" ]]; then
   $NO_INTERACTIVE && die "--no-interactive requires --version and --flavor"
-  echo "Available ${DISTRO} versions (newest last):"
-  echo "$ENTRIES" | awk -F'|' '{printf "  %2d) %-12s %-10s %s\n", NR, $1, $2, $3}'
+  echo "Available ${DISTRO} versions (newest first):"
+  echo "$ENTRIES" | reverse_lines | awk -F'|' '{printf "  %2d) %-12s %-10s %s\n", NR, $1, $2, $3}'
   SEL_VERSION=$(ask "Select version (number or exact version)" "latest")
 fi
 if [[ "$SEL_VERSION" == "latest" ]]; then
-  SEL_VERSION=$(echo "$ENTRIES" | tail -1 | cut -d'|' -f1)
+  SEL_VERSION=$(echo "$ENTRIES" | reverse_lines | head -1 | cut -d'|' -f1)
 elif [[ "$SEL_VERSION" =~ ^[0-9]+$ ]]; then
-  SEL_VERSION=$(echo "$ENTRIES" | sed -n "${SEL_VERSION}p" | cut -d'|' -f1) || true
+  SEL_VERSION=$(echo "$ENTRIES" | reverse_lines | sed -n "${SEL_VERSION}p" | cut -d'|' -f1) || true
   [[ -n "$SEL_VERSION" ]] || die "invalid selection"
 fi
 ENTRY=$(echo "$ENTRIES" | grep -E "^${SEL_VERSION//./\\.}\|" | head -1)
@@ -502,22 +500,11 @@ fi
 echo "$ARCHS" | tr ',' '\n' | grep -qx "$SEL_ARCH" \
   || die "arch '${SEL_ARCH}' not available for ${VERSION} (have: ${ARCHS})"
 
-# resolve ISO details
-if [[ "$DISTRO" == "ubuntu" ]]; then
-  ISO_NAME="ubuntu-${VERSION}-${SEL_FLAVOR}-${SEL_ARCH}.iso"
-  ISO_URL=$(ubuntu_iso_url "$VERSION" "$SEL_FLAVOR" "$SEL_ARCH")
-  SUMS_URL=$(ubuntu_sums_url "$VERSION"); ALGO=256
-  CFG_OUT=$(scaffold_ubuntu "$VERSION" "$CODENAME" "$SEL_FLAVOR" "$SEL_ARCH" "$($DRY_RUN && echo dry || echo write)")
-else
-  if [[ "$SEL_FLAVOR" == "dvd" ]]; then
-    SUBDIR="iso-dvd"; ISO_NAME=$(debian_dvd "$VERSION")
-  else
-    SUBDIR="iso-cd"; ISO_NAME=$(debian_netinst "$VERSION")
-  fi
-  ISO_URL=$(debian_iso_url "$VERSION" "$SUBDIR" "$ISO_NAME")
-  SUMS_URL=$(debian_sums_url "$VERSION" "$SUBDIR"); ALGO=512
-  CFG_OUT=$(scaffold_debian "$VERSION" "$CODENAME" "$SEL_FLAVOR" "$($DRY_RUN && echo dry || echo write)")
-fi
+# resolve ISO details + scaffold (data-driven: scripts/scaffolds/<distro>.spec/.scaffold)
+ISO_NAME=""; ISO_URL=""; SUMS_URL=""; ALGO=""; OUT=""
+resolve_distro "$DISTRO" "$VERSION" "$SEL_FLAVOR" "$SEL_ARCH" \
+  || die "cannot resolve ${DISTRO} ${VERSION}/${SEL_FLAVOR} (missing scripts/scaffolds/${DISTRO}.spec?)"
+CFG_OUT=$(scaffold "$DISTRO" "$VERSION" "$CODENAME" "$SEL_FLAVOR" "$SEL_ARCH" "$($DRY_RUN && echo dry || echo write)")
 
 # default override behavior from builder cfg (same semantics as create-iso.sh)
 if ! $OVERRIDE && [[ -f "$BUILDER_CFG" ]]; then

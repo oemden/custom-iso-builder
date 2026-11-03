@@ -43,6 +43,7 @@
 #
 # Requirements: bash, curl. Works on macOS and in the Debian container.
 CATALOG_VERSION="0.0.4"
+ISO_BUILDER_VERSION="0.4.1"
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -56,10 +57,7 @@ DEBIAN_INDEX="https://cdimage.debian.org/cdimage/archive/"
 
 # Fallback codename maps (primary sources: page <title> for Ubuntu,
 # major version for Debian). Extend as new releases land.
-UBUNTU_CODENAMES=(
-  "24.04:noble" "24.10:oracular" "25.04:plucky" "25.10:questing"
-  "26.04:resolute" "26.10:stonking"
-)
+UBUNTU_CODENAMES=("24.04:noble" "24.10:oracular" "25.04:plucky" "25.10:questing" "26.04:resolute" "26.10:stonking")
 DEBIAN_CODENAMES=("8:jessie" "9:stretch" "10:buster" "11:bullseye" "12:bookworm" "13:trixie" "14:forky")
 # Debian: only keep supported-ish majors in the cache (bullseye and newer)
 DEBIAN_MIN_MAJOR=11

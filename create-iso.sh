@@ -21,7 +21,7 @@
 # Verify checksum on remote host (LATER USE)
 
 
-SCRIPT_VERSION="0.3.5"
+SCRIPT_VERSION="0.4.1"
 
 #--- Logging functions ---
 log() {
@@ -372,7 +372,7 @@ log_success "Checksum saved to ${custom_iso_name}.md5"
 #--- Echo variables ---
 function extra_output() {
 echo "-------"
-echo "Source: ${iso_path}" ; ls -l "${iso_path}"
+echo "Source: ${iso_path}" ; ls -lh "${iso_path}" && echo
 echo "Output: ${custom_iso_path}" 
 echo "install_config_file_path: ${install_config_file_path}" ; ls -l "${install_config_file_path}"
 echo "install_config_template_path: $install_config_template_path" ; ls -l "${install_config_template_path}"

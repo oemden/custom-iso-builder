@@ -1,6 +1,6 @@
 # Custom ISO Builder
 
-**Version:** 0.4.0
+**Version:** 0.4.1
 
 Automated Debian and Ubuntu custom ISO creation with preseed/autoinstall for unattended installations.
 Designed for VMware ESXi but compatible with any hypervisor or USB boot.
@@ -361,7 +361,7 @@ You'll need sudo to run the script.
 sudo ./create-iso.sh
 ```
 
-The custom ISO will be created in `ISOs/Custom/` and automatically uploaded to ESXi if you set `UPLOAD_CUSTOM_ISO=true`.
+The custom ISO will be created in `ISOs/Custom/` and automatically uploaded to ESXi if you set `UPLOAD_CUSTOM_ISO=true` in `configs/custom-iso-builder.cfg`
 
 ### Use Docker
 

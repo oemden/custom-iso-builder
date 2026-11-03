@@ -3,6 +3,7 @@ set -e
 
 # Docker entrypoint script for ISO builder
 # Handles SSH credential setup and environment preparation
+ISO_BUILDER_VERSION="0.4.0"
 
 #--- SSH Setup Function ---
 setup_ssh_credentials() {
@@ -81,14 +82,13 @@ SSHCONFIG
         # we are in ssh Config mode
         # Remove old symlink if exists
         [ -L "${SSH_LINK_TARGET}" ] && rm "${SSH_LINK_TARGET}"
-        echo "========= WTF 00 =========="
+        echo "==================="
         # Create symlink to mounted SSH
         ln -s "${SSH_APP_MOUNT}" "${HOME}"
         # chmod 700 "${SSH_LINK_TARGET}"
         ls "${SSH_LINK_TARGET}"
         echo "[ENTRYPOINT] ✓ SSH symlink created: ${SSH_LINK_TARGET} → /app/.ssh"
-        echo "========= WTF 00 =========="
-
+        echo "==================="
         echo "[ENTRYPOINT] Using existing SSH configuration from mounted ~/.ssh"
         
         # Verify SSH config exists
@@ -144,7 +144,7 @@ verify_env_vars() {
 main() {
     echo "==========================================="
     echo "Custom ISO Builder - Docker Container"
-    echo "Version: 0.2.0"
+    echo "Version: 0.4.1"
     echo "==========================================="
     echo ""
 
